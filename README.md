@@ -1,10 +1,10 @@
 
-#Currently under development not stable
+# Currently under development not stable
 
 SMART Response Basic
 =============
 
-The SMART Response Basic is based on the original work of [Robin Edwards](https://github.com/robinhedwards/ArduinoBASIC) and on the way [Tamakichi-San](https://github.com/Tamakichi/ArduinoBASIC) has modify the software to change its input and output streams.
+The SMART Response Basic is based on the original work of [Robin Edwards](https://github.com/robinhedwards/ArduinoBASIC).
 
 Original README.md file can be [read here](README_original.md)
 
