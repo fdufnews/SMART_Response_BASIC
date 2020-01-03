@@ -2,12 +2,13 @@
 #include <Arduino.h>
 #include <SmartResponseXE.h>
 
-#define SCREEN_WIDTH        42
-#define SCREEN_HEIGHT       17
+// that is size of display when using the small font
+#define MAX_SCREEN_WIDTH        64
+#define MAX_SCREEN_HEIGHT       16
 
-#define PS2_DELETE 0x08
-#define PS2_ENTER 0x0D
-#define PS2_ESC 0x1B
+#define KEY_DELETE 0x08
+#define KEY_ENTER 0x0D
+#define KEY_ESC 0x1B
 
 #define EXTERNAL_EEPROM         0
 #define EXTERNAL_EEPROM_ADDR    0x50    // I2C address (7 bits)
@@ -23,6 +24,15 @@ int host_analogRead(int pin);
 void host_pinMode(int pin, int mode);
 void host_click();
 void host_startupTone();
+unsigned int host_BASICFreeMem(void);
+unsigned int host_CFreeMem(void);
+void host_setFont(unsigned char fontNum);
+void host_setBatStat(void);
+float host_getBatStat(void);
+void host_printStatus(void);
+boolean host_setLineWrap(boolean wrap);
+unsigned char host_getFontWidth(void);
+unsigned char host_getFontHeight(void);
 void host_cls();
 void host_showBuffer();
 void host_moveCursor(int x, int y);
@@ -33,6 +43,7 @@ void host_outputFloat(float f);
 char *host_floatToStr(float f, char *buf);
 int host_outputInt(long val);
 void host_newLine();
+void host_goToSleep();
 char *host_readLine();
 char host_getKey();
 bool host_ESCPressed();

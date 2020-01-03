@@ -1,10 +1,15 @@
-/*  This SMART Response XE Basic
- *   A basic interpreter for the SMART Response XE terminal
- * This BASIC interpreter is based on Robin Edwards work (see note in basic.cpp)
- * 
- * fdufnews 11/2019
+/*  This is SMART Response XE Basic
+     A basic interpreter for the SMART Response XE terminal
+   This BASIC interpreter is based on Robin Edwards work (see note in basic.cpp)
+
+   fdufnews 11/2019
+   *
+   * TODO larger tokenBuf
+   *
+   * 01/2020
+   * added support for a status line on bottom of screen
  * */
- 
+
 #include <SmartResponseXE.h>
 
 #include "basic.h"
@@ -17,6 +22,10 @@
 
 // If using an external EEPROM, you'll also have to initialise it by
 // running once with the appropriate lines enabled in setup() - see below
+//
+// TODO
+//    support the 1Mb Flash EEPROM inside the SMART Response XE terminal
+//
 
 #if EXTERNAL_EEPROM
 #include <I2cMaster.h>
@@ -48,7 +57,7 @@ void setup() {
   // show memory size
   host_outputFreeMem(sysVARSTART - sysPROGEND);
   host_showBuffer(); // display buffer on screen
-
+  host_setBatStat();
   // IF USING EXTERNAL EEPROM
   // The following line 'wipes' the external EEPROM and prepares
   // it for use. Uncomment it, upload the sketch, then comment it back
@@ -66,6 +75,7 @@ void setup() {
 void loop() {
   int ret = ERROR_NONE;
 
+  host_printStatus();
   if (!autorun) {
     // get a line from the user
     char *input = host_readLine();
@@ -84,6 +94,7 @@ void loop() {
     tokenBuf[1] = 0;
     autorun = 0;
   }
+
   // execute the token buffer
   if (ret == ERROR_NONE) {
     host_newLine();
@@ -98,4 +109,3 @@ void loop() {
     host_outputProgMemString((char *)pgm_read_word(&(errorTable[ret])));
   }
 }
-

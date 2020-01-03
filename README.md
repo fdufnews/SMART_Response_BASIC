@@ -1,5 +1,5 @@
 
-# Currently under development not stable
+# Currently under development
 
 SMART Response Basic
 =============
@@ -8,23 +8,27 @@ The SMART Response Basic is based on the original work of [Robin Edwards](https:
 
 Original README.md file can be [read here](README_original.md)
 
-My aim is to make a mobile programming platform that can be used on the lab or on the road to test components. I have tried to use Bus Pirate but I have found its syntax a bit esoteric and have never used it as much as I originaly plan.
+My aim is to make a mobile programming platform that can be used on the lab or on the road to test components.
 
 The SMART Response XE terminal is a very attractive platform :
 * 384x136 pixels LCD screen,
 * a good keyboard,
 * a CPU with 128kB of program flash memory, 16kB of RAM, 4k of EEPROM
-* 128kO of external flash
+* 128kB of external flash
 * it can work for hours on 4 AAA batteries.
 
-Nevertheless, there are drawbacks. The main one is how the display works. There is a memory plane inside the display that hold the graphic but this memory cannot be read back when the display interface is in serial mode. This make it difficult to make addition of graphics over existing ones. Especially as the memory is written 3 pixels at a time. If you want to toggle one pixel you can potentially overwrite two others.
+Nevertheless, there are drawbacks. The main one is how the display works. There is a memory plane inside the display that hold the graphic but this memory cannot be read back as the display interface is in serial mode. This make it difficult to make addition of graphics over existing ones. Especially as the memory is written 3 pixels at a time. If you want to toggle one pixel you can potentially overwrite two others.
 
 So, at first I will try to make BASIC work in text mode only.
 
 TODO list
 ----------
-- [ ] make BASIC work with keyboard and LCD display without any other modification
-- [ ] add save/restore BASIC programs on external Flash
+- [x] make BASIC work with keyboard and LCD display without any other modification
+- [ ] enhance display functions
+  - [ ] use hardware scroll to speed up display (coded but not currently in use)
+  - [x] font change and dynamic adaptation to font size
+  - [x] use bottom line of screen to show status of terminal (battery status, font in use, line wrap, free mem...) still some problem with ADC
+- [ ] add save/restore BASIC programs using Flash memory in the terminal
 - [ ] add SPI support
 - [ ] add I2C support
 
@@ -32,21 +36,16 @@ Prerequisites
 -------------
 1: A SMART Response XE terminal.
 
-2: (Optional) A Piezoelectric buzzer for keyboard clicks and other sounds.
+2: (Optional) A Piezoelectric buzzer for keyboard clicks and other sounds [see hack on the github of the hardware](https://github.com/fdufnews/SMART-Response-XE-schematics).
 
-5: (Optional) An LED to show some status or debug software.
+5: (Optional) An LED to show some status or to help debug software [see hack on the github of the hardware](https://github.com/fdufnews/SMART-Response-XE-schematics).
 
 Getting Started
 ---------------
 1: Download the zip file, unpack and copy the *folder* to your arduino sketches directory.
 
-2: Install the PS/2 keyboard library if required. I've included the version I used in the zip file.
+2: Install the [SMART response XE library](https://github.com/fdufnews/SMART-Response-XE-Low_level) it is [bitbank2's library](https://github.com/bitbank2/SmartResponseXE) with some modification. Unzip the file and copy the *folder* in a hardware directory as explained in the redme.md of the library.
 
-3: Install the SSD1306ASCII library. The normal Adafruit library is too RAM hungry for this project, so I'm using a massively cut down driver instead. I've modified this library a bit to get fast SPI transfers which improved the screen updating speed by a factor of about 4. The modified version is included in the zip file.
-
-For both libraries, unzip the files and copy the *folder* to your arduino libraries directory.
-
-4: Check your wiring corresponds to the pins in the comments/defines at the top of the Arduino_BASIC file.
 
 BASIC Language
 --------------
@@ -90,6 +89,7 @@ GOSUB lineNumber
 RETURN
 DIM variable(n1,n2...)
 CLS
+SLEEP <comment> put terminal in low power mode, switch on with power button
 PAUSE milliseconds
 POSITION x,y sets the cursor
 PIN pinNum, value (0 = low, non-zero = high)
@@ -101,13 +101,18 @@ LOAD "filename", SAVE "filename, DIR, DELETE "filename" if using with external E
 
 "Pseudo-identifiers"
 ```
-INKEY$ - returns (and eats) the last key pressed buffer (non-blocking). e.g. PRINT INKEY$
+INKEY$ - returns (and eats) the last key pressed buffer (non-blocking). e.g. PRINT INKEY$.
+    The function was slightly modified to return any key code (even if less than 32) in order to receive function keys of the SMART Response Terminal
+      Menu = 1
+      Cursor keys : LEFT = 2, RIGHT = 3, UP= 4, DOWN = 5
+      Function keys from F1 = 240 to F10 = 249 (F1 is top left and F10 is bottom right)
 RND - random number betweeen 0 and 1. e.g. LET a = RND
 ```
 
 Functions
 ```
 LEN(string) e.g. PRINT LEN("Hello") -> 5
+ASC(string) e.g. PRINT ASC("ABCD") -> 65 (ASCII code of A)
 VAL(string) e.g. PRINT VAL("1+2")
 INT(number) e.g. INT(1.5)-> 1
 STR$(number) e.g. STR$(2) -> "2"
@@ -117,3 +122,26 @@ MID$(string,start,n)
 PINREAD(pin) - see Arduino digitalRead()
 ANALOGRD(pin) - see Arduino analogRead()
 ```
+
+Configuration / Status
+-------------
+In any mode, 8 lines are kept on bottom of screen to display status of the system.
+First the state of the battery (currently buggy), the font used, the memory usage.
+* The system gives the user the option to switch from one font to another. There are 4 fonts:
+	* **normal**, using a 9x8 matrix and giving 17 lines of 42 characters
+	* **small**, using a 6x8 matrix and giving 17 lines of 64 characters (really, really small difficult to use for poor old eyes)
+	* **medium**, using a 12x16 matrix and giving 8 lines of 32 characters
+	* **large**, using a 15x16 matrix and giving 8 lines of 25 characters
+The medium and large font leave 8 lines at bottom of screen so it was decided to do the same for the normal and small one. Theese 8 lines are used to display the status.
+
+* Memory usage displays 2 numbers:
+	* BASIC free mem, the BASIC interpreter has a reserved buffer used to store program and data. The value dispayed gives how much of the buffer is used
+	* C free mem, the second number is the size of the stack left to the C that is running the interpreter
+
+Currently, BASIC has a 10kB buffer and the remaining 6kB are for C. After setup, there are 4kB of free RAM for C. As much of the memory is allocated during setup, 4kB seems to be very conservative. It can probably be reduced if BASIC interpreter needs more free memory. MEMORY_SIZE, defined in basic.h, defines the size of the BASIC memory. For detailled information on memory usage see [memory.md](memory.md)
+
+Not part of the BASIC language, there is support for the MENU key (SYM + space).
+That key is used to make a call to the host_setConf function in which user can change the font used with the display.
+You can see you have entered configuration mode as the cursor stops blinking. Using UP ans DOWN keys the user can change the font. The name of the selected font is displayed on the status line.
+You leave configuration mode by pressing ENTER (DEL key) or by pressing MENU (SYM + space).
+The screen buffer is cleared, but the current line is kept and displayed on top with cursor at the right position, if user was currently editing a line when switching to configuration mode.

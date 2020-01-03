@@ -67,9 +67,14 @@
 #define TOKEN_ANALOGRD          63
 #define TOKEN_DIR               64
 #define TOKEN_DELETE            65
+//   fdufnews 12/2019
+//   added ASC(string)
+//   added SLEEP
+#define TOKEN_ASC               66
+#define TOKEN_SLEEP             67
 
 #define FIRST_IDENT_TOKEN 23
-#define LAST_IDENT_TOKEN 65
+#define LAST_IDENT_TOKEN 67
 
 #define FIRST_NON_ALPHA_TOKEN    8
 #define LAST_NON_ALPHA_TOKEN    22
@@ -105,6 +110,7 @@
 #define MAX_IDENT_LEN	8
 #define MAX_NUMBER_LEN	10
 
+// size of BASIC memory this is the size allocated to mem[] is which programme and data are located
 #define MEMORY_SIZE	(10L*1024L)
 extern unsigned char mem[];
 extern int sysPROGEND;
@@ -141,4 +147,3 @@ int tokenize(unsigned char *input, unsigned char *output, int outputSize);
 int processInput(unsigned char *tokenBuf);
 
 #endif
-

@@ -1,21 +1,68 @@
+/*
+        fdufnews
+        12/2019
+
+        Added support to SMART Response XE using SmartResponseXE library
+        use terminal keyboard for input and display text on its LCD screen
+        use ON/OFF button to put terminal in sleep mode
+        added host_setFont to select active font
+        added host_setLineWrap to choose between line wrap or truncated line
+        added fontStatus structure to retrieve information relative to the text interface (size of font, nb car per line and line per screen)
+        added setConf in order to change font (only at command line level)
+        added support of MENU key which calls setConf to change font
+
+          DONE: ADC configuration (using 1.6V internal ref)
+          TODO: battery management, display battery state
+          DONE 01/2020: font as an option --> dynamic screen width and screen height
+          2/3 DONE: last line used for status (battery state, font used, freemem) but issue with battery state
+*/
+
 #include "host.h"
 #include "basic.h"
 
 #include <SmartResponseXE.h>
+#include <MemoryFree.h>
 
 #include <EEPROM.h>
 
 extern EEPROMClass EEPROM;
 int timer1_counter;
 
-char screenBuffer[SCREEN_WIDTH * SCREEN_HEIGHT];
-char lineDirty[SCREEN_HEIGHT];
+// Allocates a buffer sized for the larger screen mode
+char screenBuffer[MAX_SCREEN_WIDTH * MAX_SCREEN_HEIGHT];
+char lineDirty[MAX_SCREEN_HEIGHT];
 int curX = 0, curY = 0;
 volatile char flash = 0, redraw = 0;
 char inputMode = 0;
 char inkeyChar = 0;
 char buzPin = 0;
 char ledPin = 0;
+char ledState = 0;
+
+char *fontName[4] = {"NORMAL", "SMALL", "MEDIUM", "LARGE"};
+
+struct sizeOfFont {
+  unsigned char width;
+  unsigned char height;
+};
+struct sizeOfFont fontSize[4] = {{9, 8}, {6, 8}, {12, 16}, {15, 16}};
+
+struct sizeOfScreen {
+  unsigned char nbCar;
+  unsigned char nbLine;
+};
+// note that the screenSize definitions here under reserve one block of 8 lines to display status in all modes
+struct sizeOfScreen screenSize[4] = {{42, 16}, {64, 16}, {32, 8}, {25, 8}};
+
+struct {
+  unsigned char currentFont;
+  unsigned char width;
+  unsigned char height;
+  unsigned char nbCar;
+  unsigned char nbLine;
+  unsigned int bufSize;
+  boolean lineWrap;
+} fontStatus = {FONT_NORMAL, 9, 8, 42, 16, 42 * 16, true};
 
 const char bytesFreeStr[] PROGMEM = "bytes free";
 
@@ -41,11 +88,13 @@ ISR(TIMER1_OVF_vect)        // interrupt service routine
 void host_init(int buzzer_Pin, int led_Pin) {
   char ledState = 0;
 
+  //  Serial.begin(115200);
   buzPin = buzzer_Pin;
   ledPin = led_Pin;
   SRXEInit(0xe7, 0xd6, 0xa2); // initialize and clear display // CS, D/C, RESET
+  host_setFont(FONT_NORMAL);
   SRXEFill(0);
-  // set Power button input
+  // set on/off button input
   pinMode(POWER_BUTTON, INPUT_PULLUP);
   // Blink the LED
   if (ledPin) {
@@ -59,6 +108,7 @@ void host_init(int buzzer_Pin, int led_Pin) {
   if (buzPin)
     pinMode(buzPin, OUTPUT);
   initTimer();
+//  host_setBatStat();
 }
 
 void host_sleep(long ms) {
@@ -66,6 +116,8 @@ void host_sleep(long ms) {
 }
 
 void host_digitalWrite(int pin, int state) {
+  if((ledPin!=0) && (pin==ledPin)) // If LED present and we are modifying its state
+    ledState=state;                // save its new state.
   digitalWrite(pin, state ? HIGH : LOW);
 }
 
@@ -101,28 +153,115 @@ void host_startupTone() {
   }
 }
 
+//    host_BASICFreeMem
+// returns free BASIC memory
+//
+unsigned int host_BASICFreeMem(void) {
+  return sysVARSTART - sysPROGEND;
+  //return sysVAREND - sysSTACKEND;
+}
+
+//    host_CFreeMem
+// returns free C memory
+//
+unsigned int host_CFreeMem(void) {
+  return freeMemory();
+}
+
+//    host_setFont
+//  set the active font used to display text on screen
+// input fontNum shall be one of FONT_NORMAL, FONT_SMALL, FONT_MEDIUM, FONT_LARGE
+// output nothing
+// updates fontStatus structure with new parameters
+//
+void host_setFont(unsigned char fontNum) {
+  if (fontNum < 0 || fontNum > 3) return ;
+  fontStatus.currentFont = fontNum;
+  fontStatus.width = fontSize[fontNum].width;
+  fontStatus.height = fontSize[fontNum].height;
+  fontStatus.nbCar = screenSize[fontNum].nbCar;
+  fontStatus.nbLine = screenSize[fontNum].nbLine;
+  fontStatus.bufSize = fontStatus.nbCar * fontStatus.nbLine;
+}
+
+//   host_setBatStat
+// set DAC configuration
+// Select 1.6V ref voltage
+// Select A0 as input
+void host_setBatStat(void) {
+  ADMUX = 0xC0; // Int ref 1.6V
+  ADCSRA = 0x87; // Enable ADC
+  ADCSRB = 0x00; // MUX5= 0, freerun
+  ADCSRC = 0x54; // Default value
+  ADCSRA = 0x97; // Enable ADC
+  //delay(5);
+  ADCSRA |= (1 << ADSC); // start conversion
+}
+
+//    host_getBatStat
+// returns battery's voltage in millivolts
+// input nothing
+// output battery voltage
+// Battery is connected through a resistor divider (825k and 300k) with gain of 0.266666
+// ADC ref is 1.6V with 1024 steps
+//
+float host_getBatStat(void) {
+  uint16_t low, high;
+
+  ADCSRA |= (1 << ADSC);
+  while (ADCSRA & (1 << ADSC));
+  low = ADCL;
+  high = ADCH;
+  return (float)((high << 8) + low) * 1.6 / 1024 / 0.26666;
+}
+
+//    host_printStatus
+//  print system status on bottom line of display
+// Battery voltage, selected font, memory usage
+// Memory usage is Free BASIC mem and Free C mem
+//  input nothing
+//  output nothing
+//
+void host_printStatus(void) {
+  char buffer[43];
+  char buf[16];
+  //  host_setBatStat();
+  sprintf(buffer, " Bat: %4.4sV | Font: %6.6s | %5d/%5d ", host_floatToStr(host_getBatStat(), buf), fontName[fontStatus.currentFont], host_BASICFreeMem(), host_CFreeMem());
+  SRXEWriteString(0, 135 - 8, buffer, FONT_NORMAL, 0, 3);
+}
+
+//    host_setLineWrap
+//  set Line Wrap status used with print
+//  input wrap true if line wrap active, false if line truncated active
+//  NOTE: not currently used
+//
+boolean host_setLineWrap(boolean wrap) {
+  fontStatus.lineWrap = wrap;
+  return wrap;
+}
+
 void host_cls() {
-  memset(screenBuffer, 32, SCREEN_WIDTH * SCREEN_HEIGHT);
-  memset(lineDirty, 1, SCREEN_HEIGHT);
+  memset(screenBuffer, 32, fontStatus.bufSize);
+  memset(lineDirty, 1, fontStatus.nbLine);
   curX = 0;
   curY = 0;
 }
 
 void host_moveCursor(int x, int y) {
   if (x < 0) x = 0;
-  if (x >= SCREEN_WIDTH) x = SCREEN_WIDTH - 1;
+  if (x >= fontStatus.nbCar) x = fontStatus.nbCar - 1;
   if (y < 0) y = 0;
-  if (y >= SCREEN_HEIGHT) y = SCREEN_HEIGHT - 1;
+  if (y >= fontStatus.nbLine) y = fontStatus.nbLine - 1;
   curX = x;
   curY = y;
 }
 
 void host_showBuffer() {
-  for (int y = 0; y < SCREEN_HEIGHT; y++) {
+  for (int y = 0; y < fontStatus.nbLine; y++) {
     if (lineDirty[y] || (inputMode && y == curY)) {
       //oled.setCursor(0,y);
-      for (int x = 0; x < SCREEN_WIDTH; x++) {
-        char c = screenBuffer[y * SCREEN_WIDTH + x];
+      for (int x = 0; x < fontStatus.nbCar; x++) {
+        char c = screenBuffer[y * fontStatus.nbCar + x];
         if (c < 32) c = ' ';
         if (x == curX && y == curY && inputMode && flash) c = 127;
         char buf[2] = {0, 0};
@@ -131,10 +270,10 @@ void host_showBuffer() {
         // quick and dirty way to do it
         // should replace constants with font size information
         if (c != 127) {
-          SRXEWriteString(x * 9, y * 8, buf, FONT_NORMAL, 3, 0);
+          SRXEWriteString(x * fontStatus.width, y * fontStatus.height, buf, fontStatus.currentFont, 3, 0);
         } else {
           buf[0] = 0x20;
-          SRXEWriteString(x * 9, y * 8, buf, FONT_NORMAL, 0, 3);
+          SRXEWriteString(x * fontStatus.width, y * fontStatus.height, buf, fontStatus.currentFont, 0, 3);
         }
       }
       lineDirty[y] = 0;
@@ -143,24 +282,24 @@ void host_showBuffer() {
 }
 
 void scrollBuffer() {
-  memcpy(screenBuffer, screenBuffer + SCREEN_WIDTH, SCREEN_WIDTH * (SCREEN_HEIGHT - 1));
-  memset(screenBuffer + SCREEN_WIDTH * (SCREEN_HEIGHT - 1), 32, SCREEN_WIDTH);
-  memset(lineDirty, 1, SCREEN_HEIGHT);
+  memcpy(screenBuffer, screenBuffer + fontStatus.nbCar, fontStatus.nbCar * (fontStatus.nbLine - 1));
+  memset(screenBuffer + fontStatus.nbCar * (fontStatus.nbLine - 1), 32, fontStatus.nbCar);
+  memset(lineDirty, 1, fontStatus.nbLine);
   curY--;
 }
 
 void host_outputString(char *str) {
-  int pos = curY * SCREEN_WIDTH + curX;
+  int pos = curY * fontStatus.nbCar + curX;
   while (*str) {
-    lineDirty[pos / SCREEN_WIDTH] = 1;
+    lineDirty[pos / fontStatus.nbCar] = 1;
     screenBuffer[pos++] = *str++;
-    if (pos >= SCREEN_WIDTH * SCREEN_HEIGHT) {
+    if (pos >= fontStatus.bufSize) {
       scrollBuffer();
-      pos -= SCREEN_WIDTH;
+      pos -= fontStatus.nbCar;
     }
   }
-  curX = pos % SCREEN_WIDTH;
-  curY = pos / SCREEN_WIDTH;
+  curX = pos % fontStatus.nbCar;
+  curY = pos / fontStatus.nbCar;
 }
 
 void host_outputProgMemString(const char *p) {
@@ -172,15 +311,15 @@ void host_outputProgMemString(const char *p) {
 }
 
 void host_outputChar(char c) {
-  int pos = curY * SCREEN_WIDTH + curX;
-  lineDirty[pos / SCREEN_WIDTH] = 1;
+  int pos = curY * fontStatus.nbCar + curX;
+  lineDirty[pos / fontStatus.nbCar] = 1;
   screenBuffer[pos++] = c;
-  if (pos >= SCREEN_WIDTH * SCREEN_HEIGHT) {
+  if (pos >= fontStatus.bufSize) {
     scrollBuffer();
-    pos -= SCREEN_WIDTH;
+    pos -= fontStatus.nbCar;
   }
-  curX = pos % SCREEN_WIDTH;
-  curY = pos / SCREEN_WIDTH;
+  curX = pos % fontStatus.nbCar;
+  curY = pos / fontStatus.nbCar;
 }
 
 int host_outputInt(long num) {
@@ -238,34 +377,62 @@ void host_outputFloat(float f) {
 void host_newLine() {
   curX = 0;
   curY++;
-  if (curY == SCREEN_HEIGHT)
+  if (curY == fontStatus.nbLine)
     scrollBuffer();
-  memset(screenBuffer + SCREEN_WIDTH * (curY), 32, SCREEN_WIDTH);
+  memset(screenBuffer + fontStatus.nbCar * (curY), 32, fontStatus.nbCar);
   lineDirty[curY] = 1;
 }
 
 // Function that put the terminal in sleep mode
 // When waking up restore the display and the ADC configuration
 void host_goToSleep(void) {
-  digitalWrite(ledPin, LOW);
-  SRXESleep(); // go into sleep mode and wait for an event (power button)
+  if (ledPin) digitalWrite(ledPin, LOW); // if LED present switch it off
+  SRXESleep(); // go into sleep mode and wait for an event (on/off button)
   // returning from sleep
   // restore screen
-  memset(lineDirty, 1, SCREEN_HEIGHT);
+  memset(lineDirty, 1, fontStatus.nbLine);
   host_showBuffer();
-  // todo
-  //  setBatStat(); // restore ADC configuration
-  //  digitalWrite(ledPin,ledState); // restore LED state
+  if (ledPin) digitalWrite(ledPin, ledState); // If LED present restore its state
+  host_setBatStat(); // restore ADC configuration
 }
 
-
+//    host_setConf
+//  Modify configuration
+// UP and DOWN change font
+// MENU or ENTER returns to calling function
+//
+void host_setConf(void) {
+  char c;
+  boolean done = false;
+  unsigned char font = fontStatus.currentFont; // get current font
+  while (!done) {
+    while (c = SRXEGetKey()) {    // get a key
+      switch (c) {
+        case KEY_UP:
+          font += 1;  // next font
+          break;
+        case KEY_DOWN:
+          font -= 1;  // previous font
+          break;
+        case KEY_MENU:
+        case KEY_ENTER:
+          done = true;  // exit setConf
+          break;
+      }
+      font &= 3;          // limit font number to 0..3 range
+      host_setFont(font); // update font parameters
+      host_printStatus(); // display updated status
+      delay(100);         // little delay just in case
+    }
+  }
+}
 char *host_readLine() {
   inputMode = 1;
 
-  if (curX == 0) memset(screenBuffer + SCREEN_WIDTH * (curY), 32, SCREEN_WIDTH);
+  if (curX == 0) memset(screenBuffer + fontStatus.nbCar * (curY), 32, fontStatus.nbCar);
   else host_newLine();
 
-  int startPos = curY * SCREEN_WIDTH + curX;
+  int startPos = curY * fontStatus.nbCar + curX;
   int pos = startPos;
 
   bool done = false;
@@ -278,28 +445,40 @@ char *host_readLine() {
 
       host_click();
       // read the next key
-      lineDirty[pos / SCREEN_WIDTH] = 1;
+      lineDirty[pos / fontStatus.nbCar] = 1;
       //char c = keyboard.read();
       if (c >= 32 && c <= 126)
         screenBuffer[pos++] = c;
-      else if (c == PS2_DELETE && pos > startPos)
+      else if (c == KEY_DELETE && pos > startPos)
         screenBuffer[--pos] = 0;
-      else if (c == PS2_ENTER)
+      else if ((c == KEY_MENU)) {     // if we want to change configuration
+        host_setConf();               // call setConf to change font
+        // update screen content with new font
+        // move current line to top of screen
+        memcpy(screenBuffer, screenBuffer + startPos, pos - startPos);
+        pos = pos - startPos;
+        startPos = 0;
+        // clear from current pos to end of buffer
+        memset(screenBuffer + pos, 32, fontStatus.bufSize - pos); // screenBuffer + pos + 1 or + pos???
+        // tels that all the lines have changed
+        memset(lineDirty, 1, fontStatus.nbLine);
+      }
+      else if (c == KEY_ENTER)
         done = true;
-      curX = pos % SCREEN_WIDTH;
-      curY = pos / SCREEN_WIDTH;
+      curX = pos % fontStatus.nbCar;
+      curY = pos / fontStatus.nbCar;
       // scroll if we need to
-      if (curY == SCREEN_HEIGHT) {
-        if (startPos >= SCREEN_WIDTH) {
-          startPos -= SCREEN_WIDTH;
-          pos -= SCREEN_WIDTH;
+      if (curY == fontStatus.nbLine) {
+        if (startPos >= fontStatus.nbCar) {
+          startPos -= fontStatus.nbCar;
+          pos -= fontStatus.nbCar;
           scrollBuffer();
         }
         else
         {
           screenBuffer[--pos] = 0;
-          curX = pos % SCREEN_WIDTH;
-          curY = pos / SCREEN_WIDTH;
+          curX = pos % fontStatus.nbCar;
+          curY = pos / fontStatus.nbCar;
         }
       }
       redraw = 1;
@@ -318,16 +497,16 @@ char *host_readLine() {
 char host_getKey() {
   char c = inkeyChar;
   inkeyChar = 0;
-  if (c >= 32 && c <= 126)
-    return c;
-  else return 0;
+  //if (c >= 32 && c <= 126)
+  return c;
+  //else return 0;
 }
 
 bool host_ESCPressed() {
   int c;
   while (c = SRXEGetKey()) {
     inkeyChar = c;
-    if (inkeyChar == PS2_ESC)
+    if (inkeyChar == KEY_ESC)
       return true;
   }
   return false;
@@ -475,4 +654,3 @@ bool host_saveExtEEPROM(char *fileName) {
 }
 
 #endif
-

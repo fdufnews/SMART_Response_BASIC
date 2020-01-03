@@ -37,11 +37,25 @@
     - PIN <pin>, <state> - sets the pin high (non zero) or low (zero)
     - PINREAD(pin) returns pin value, ANALOGRD(pin) for analog pins
    ---------------------------------------------------------------------------
+   fdufnews 12/2019
+   added ASC(string)
+    ASC returns the ASCII code of the first car in the string
+   modified INKEY$
+    INKEY$ returns any key code (even if less than 32) in order to receive function keys of the SMART Response Terminal
+      Menu = 1
+      Cursor keys : LEFT = 2, RIGHT = 3, UP= 4, DOWN = 5
+      Function keys from F1 = 240 to F10 = 249 (F1 is top left and F10 is bottom right)
+   added SLEEP
+    SLEEP put terminal in low power mode, exit with power button
+
 */
 
 // TODO
 // ABS, SIN, COS, EXP etc
 // DATA, READ, RESTORE
+
+// TODO fdufnews
+// EDIT mode using screen buffer
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,7 +128,8 @@ const char* const errorTable[] PROGMEM = {
 #define TKN_FMT_POST		0x40
 #define TKN_FMT_PRE		0x80
 
-
+//   fdufnews 12/2019
+//   added ASC(string)
 PROGMEM const TokenTableEntry tokenTable[] = {
   {0, 0}, {0, 0}, {0, 0}, {0, 0},
   {0, 0}, {0, 0}, {0, 0}, {0, 0},
@@ -132,7 +147,7 @@ PROGMEM const TokenTableEntry tokenTable[] = {
   {"RIGHT$", 2 | TKN_ARG1_TYPE_STR | TKN_RET_TYPE_STR}, {"MID$", 3 | TKN_ARG1_TYPE_STR | TKN_RET_TYPE_STR}, {"CLS", TKN_FMT_POST}, {"PAUSE", TKN_FMT_POST},
   {"POSITION", TKN_FMT_POST},  {"PIN", TKN_FMT_POST}, {"PINMODE", TKN_FMT_POST}, {"INKEY$", 0},
   {"SAVE", TKN_FMT_POST}, {"LOAD", TKN_FMT_POST}, {"PINREAD", 1}, {"ANALOGRD", 1},
-  {"DIR", TKN_FMT_POST}, {"DELETE", TKN_FMT_POST}
+  {"DIR", TKN_FMT_POST}, {"DELETE", TKN_FMT_POST}, {"ASC",  1 | TKN_ARG1_TYPE_STR}, {"SLEEP", TKN_FMT_POST}
 };
 
 
@@ -1045,6 +1060,11 @@ int parseFnCallExpr() {
         tmp = strlen(stackPopStr());
         if (!stackPushNum(tmp)) return ERROR_OUT_OF_MEMORY;
         break;
+        // added fdufnews 26/12/2019
+      case TOKEN_ASC:
+        tmp=(int )*stackPopStr() & 0xFF; // keep it positive
+        if (!stackPushNum(tmp)) return ERROR_OUT_OF_MEMORY;
+        break;
       case TOKEN_VAL:
         {
           // tokenise str onto the stack
@@ -1230,7 +1250,7 @@ int parsePrimary() {
     case TOKEN_LBRACKET:
       return parseParenExpr();
 
-    // "psuedo-identifiers"
+    // "pseudo-identifiers"
     case TOKEN_RND:
       return parse_RND();
     case TOKEN_INKEY:
@@ -1245,6 +1265,7 @@ int parsePrimary() {
     case TOKEN_INT:
     case TOKEN_STR:
     case TOKEN_LEN:
+    case TOKEN_ASC:
     case TOKEN_VAL:
     case TOKEN_LEFT:
     case TOKEN_RIGHT:
@@ -1767,6 +1788,10 @@ int parseSimpleCmd() {
         host_cls();
         host_showBuffer();
         break;
+      case TOKEN_SLEEP:
+        host_goToSleep();
+        host_showBuffer();
+        break;
       case TOKEN_DIR:
 #if EXTERNAL_EEPROM
         host_directoryExtEEPROM();
@@ -1840,6 +1865,7 @@ int parseStmts()
       case TOKEN_RETURN:
       case TOKEN_CLS:
       case TOKEN_DIR:
+      case TOKEN_SLEEP:
         ret = parseSimpleCmd();
         break;
 
@@ -1981,4 +2007,3 @@ void reset() {
   stopStmtNumber = 0;
   lineNumber = 0;
 }
-
