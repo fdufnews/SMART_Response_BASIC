@@ -222,7 +222,7 @@ void host_printStatus(void) {
   char buf[16];
   //  host_setBatStat();
   sprintf(buffer, " Bat: %4.4sV | Font: %6.6s | %5d/%5d ", host_floatToStr(host_getBatStat(), buf), fontName[fontStatus.currentFont], host_BASICFreeMem(), host_CFreeMem());
-  SRXEWriteString(0, 135 - 8, buffer, FONT_NORMAL, 0, 3);
+  SRXEWriteString(0, 135 - 8 + 1, buffer, FONT_NORMAL, 0, 3);
 }
 
 //    host_setLineWrap
@@ -373,9 +373,26 @@ void host_outputFloat(float f) {
 //  displays a greeting screen
 //
 void host_splashscreen(void){
+  const int startHit = 138;
+  const int lengthArrow = 84;
+  const int startArrow = startHit + 132;
+  int pos = startArrow;
+  unsigned long pauseArrow = 500ul;
+  unsigned long lastTimeArrow = 0;
+  unsigned long currenTime = millis();
+  
   SRXELoadBitmapRLE(0,0,bitmap_logo2_rle);
-  SRXEWriteString(126, 110, "Hit a key to continue", FONT_MEDIUM, 3, 1);
-  while (!SRXEGetKey()){};
+  SRXEWriteString(startHit, 110, "Hit a key         ", FONT_MEDIUM, 3, 1);
+  while (!SRXEGetKey()){
+    currenTime = millis();
+    if(currenTime - lastTimeArrow >= pauseArrow){
+      SRXEWriteString(pos, 110, " ", FONT_MEDIUM, 3, 1);
+      pos += 12;
+      if (pos > startHit + 120 + lengthArrow) pos = startArrow;
+      SRXEWriteString(pos, 110, ">", FONT_MEDIUM, 3, 1);
+      lastTimeArrow = currenTime;
+    }
+  };
 }
 
 void host_newLine() {

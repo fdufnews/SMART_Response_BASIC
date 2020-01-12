@@ -6,6 +6,8 @@ from array import array
 import argparse
 
 #list defining the 4 colors for any of the 3 pixels
+# The color list is inverted comparing to the one in the SMART Response library
+# that's because "min" and "max" has a different meaning in the two applications
 color = [0xFF, 0x92, 0x49, 0x00]
 #list defining the mask to access the 3 pixels
 mask = [0xE0, 0x1C, 0x03]
