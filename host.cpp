@@ -19,6 +19,7 @@
 
 #include "host.h"
 #include "basic.h"
+#include "logo2_rle.h"
 
 #include <SmartResponseXE.h>
 #include <MemoryFree.h>
@@ -97,16 +98,10 @@ void host_init(int buzzer_Pin, int led_Pin) {
   // set on/off button input
   pinMode(POWER_BUTTON, INPUT_PULLUP);
   // Blink the LED
-  if (ledPin) {
-    pinMode(ledPin, OUTPUT);
-    for (byte count = 0; count < 6; count++) {
-      ledState = !ledState;
-      digitalWrite(LED, ledState);
-      delay(500);
-    }
-  }
+  host_splashscreen();
   if (buzPin)
     pinMode(buzPin, OUTPUT);
+  SRXEFill(0);
   initTimer();
 //  host_setBatStat();
 }
@@ -374,6 +369,15 @@ void host_outputFloat(float f) {
   host_outputString(host_floatToStr(f, buf));
 }
 
+//   host_splashscreen
+//  displays a greeting screen
+//
+void host_splashscreen(void){
+  SRXELoadBitmapRLE(0,0,bitmap_logo2_rle);
+  SRXEWriteString(126, 110, "Hit a key to continue", FONT_MEDIUM, 3, 1);
+  while (!SRXEGetKey()){};
+}
+
 void host_newLine() {
   curX = 0;
   curY++;
@@ -390,6 +394,7 @@ void host_goToSleep(void) {
   SRXESleep(); // go into sleep mode and wait for an event (on/off button)
   // returning from sleep
   // restore screen
+  host_splashscreen();
   memset(lineDirty, 1, fontStatus.nbLine);
   host_showBuffer();
   if (ledPin) digitalWrite(ledPin, ledState); // If LED present restore its state
