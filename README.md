@@ -27,8 +27,8 @@ TODO list
 - [ ] enhance display functions
   - [ ] use hardware scroll to speed up display (coded but not currently in use)
   - [x] font change and dynamic adaptation to font size
-  - [x] use bottom line of screen to show status of terminal (battery status, font in use, line wrap, free mem...) still some problem with ADC
-- [ ] add save/restore BASIC programs using Flash memory in the terminal
+  - [x] use bottom line of screen to show status of terminal (battery status, font in use, line wrap, free mem...)
+- [ ] add save/restore BASIC programs using Flash memory of the terminal
 - [ ] add SPI support
 - [ ] add I2C support
 
