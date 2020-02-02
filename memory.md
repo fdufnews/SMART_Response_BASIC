@@ -7,6 +7,8 @@ mem[] size is defined in basic.h
 #define MEMORY_SIZE	(10L*1024L)
 extern unsigned char mem[];
 ```
+mem is declared in SMART_Response_BASIC.ino
+
 mem is sliced in different subsections that are adressed using variables used as indexes inside mem
 * Program
 * Stack

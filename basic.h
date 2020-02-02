@@ -110,7 +110,7 @@
 #define MAX_IDENT_LEN	8
 #define MAX_NUMBER_LEN	10
 
-// size of BASIC memory this is the size allocated to mem[] is which programme and data are located
+// size of BASIC memory this is the size allocated to mem[] which is  where program and data are located
 #define MEMORY_SIZE	(10L*1024L)
 extern unsigned char mem[];
 extern int sysPROGEND;

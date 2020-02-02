@@ -75,7 +75,7 @@ void setup() {
 void loop() {
   int ret = ERROR_NONE;
 
-  host_printStatus();
+  //host_printStatus();
   if (!autorun) {
     // get a line from the user
     char *input = host_readLine();

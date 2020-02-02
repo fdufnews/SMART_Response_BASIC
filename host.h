@@ -2,6 +2,13 @@
 #include <Arduino.h>
 #include <SmartResponseXE.h>
 
+// put 0 if you don't want to display the splashscreen
+// very flash-mem hungry
+#define SHOW_SPLASHSCREEN       1
+
+// set display between two status updates
+#define STATUS_RATE             (2000UL)
+
 // that is size of display when using the small font
 #define MAX_SCREEN_WIDTH        64
 #define MAX_SCREEN_HEIGHT       16
@@ -29,7 +36,7 @@ unsigned int host_CFreeMem(void);
 void host_setFont(unsigned char fontNum);
 void host_setBatStat(void);
 float host_getBatStat(void);
-void host_printStatus(void);
+void host_printStatus(boolean now);
 boolean host_setLineWrap(boolean wrap);
 void host_cls();
 void host_showBuffer();
@@ -40,7 +47,9 @@ void host_outputChar(char c);
 void host_outputFloat(float f);
 char *host_floatToStr(float f, char *buf);
 int host_outputInt(long val);
+#if SHOW_SPLASHSCREEN
 void host_splashscreen(void);
+#endif
 void host_newLine();
 void host_goToSleep();
 char *host_readLine();

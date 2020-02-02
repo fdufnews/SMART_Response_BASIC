@@ -19,6 +19,7 @@
 
 #include "host.h"
 #include "basic.h"
+
 #include "logo2_rle.h"
 
 #include <SmartResponseXE.h>
@@ -98,12 +99,14 @@ void host_init(int buzzer_Pin, int led_Pin) {
   // set on/off button input
   pinMode(POWER_BUTTON, INPUT_PULLUP);
   // Blink the LED
+  #if SHOW_SPLASHSCREEN
   host_splashscreen();
+  #endif
   if (buzPin)
     pinMode(buzPin, OUTPUT);
   SRXEFill(0);
   initTimer();
-//  host_setBatStat();
+  host_setBatStat();
 }
 
 void host_sleep(long ms) {
@@ -152,8 +155,7 @@ void host_startupTone() {
 // returns free BASIC memory
 //
 unsigned int host_BASICFreeMem(void) {
-  return sysVARSTART - sysPROGEND;
-  //return sysVAREND - sysSTACKEND;
+  return sysVARSTART - sysSTACKEND;
 }
 
 //    host_CFreeMem
@@ -180,15 +182,17 @@ void host_setFont(unsigned char fontNum) {
 }
 
 //   host_setBatStat
-// set DAC configuration
+// set ADC configuration
 // Select 1.6V ref voltage
 // Select A0 as input
 void host_setBatStat(void) {
+  ADCSRA = 0; // Disable ADC
   ADMUX = 0xC0; // Int ref 1.6V
   ADCSRA = 0x87; // Enable ADC
   ADCSRB = 0x00; // MUX5= 0, freerun
   ADCSRC = 0x54; // Default value
   ADCSRA = 0x97; // Enable ADC
+  DIDR0 = DIDR0 | ADC0D; // Disable logic buffer on ADC0
   //delay(5);
   ADCSRA |= (1 << ADSC); // start conversion
 }
@@ -214,15 +218,22 @@ float host_getBatStat(void) {
 //  print system status on bottom line of display
 // Battery voltage, selected font, memory usage
 // Memory usage is Free BASIC mem and Free C mem
-//  input nothing
+//  input 
+//  boolean now: if true print status even if STATUS_RATE has not expired
 //  output nothing
 //
-void host_printStatus(void) {
-  char buffer[43];
+void host_printStatus(boolean now) {
+  static uint32_t last_update=0L;
+  uint32_t currentMillis;
+    char buffer[43];
   char buf[16];
-  //  host_setBatStat();
-  sprintf(buffer, " Bat: %4.4sV | Font: %6.6s | %5d/%5d ", host_floatToStr(host_getBatStat(), buf), fontName[fontStatus.currentFont], host_BASICFreeMem(), host_CFreeMem());
-  SRXEWriteString(0, 135 - 8 + 1, buffer, FONT_NORMAL, 0, 3);
+  
+  currentMillis = millis();
+  if(currentMillis - last_update > STATUS_RATE || now==true){ 
+    sprintf(buffer, " Bat: %4.4sV | Font: %6.6s | %5d/%5d ", host_floatToStr(host_getBatStat(), buf), fontName[fontStatus.currentFont], host_BASICFreeMem(), host_CFreeMem());
+    SRXEWriteString(0, 135 - 8 + 1, buffer, FONT_NORMAL, 0, 3);
+    last_update = currentMillis;
+  }
 }
 
 //    host_setLineWrap
@@ -369,6 +380,7 @@ void host_outputFloat(float f) {
   host_outputString(host_floatToStr(f, buf));
 }
 
+#if SHOW_SPLASHSCREEN
 //   host_splashscreen
 //  displays a greeting screen
 //
@@ -394,6 +406,7 @@ void host_splashscreen(void){
     }
   };
 }
+#endif
 
 void host_newLine() {
   curX = 0;
@@ -411,7 +424,9 @@ void host_goToSleep(void) {
   SRXESleep(); // go into sleep mode and wait for an event (on/off button)
   // returning from sleep
   // restore screen
+  #if SHOW_SPLASHSCREEN
   host_splashscreen();
+  #endif
   memset(lineDirty, 1, fontStatus.nbLine);
   host_showBuffer();
   if (ledPin) digitalWrite(ledPin, ledState); // If LED present restore its state
@@ -443,8 +458,8 @@ void host_setConf(void) {
       }
       font &= 3;          // limit font number to 0..3 range
       host_setFont(font); // update font parameters
-      host_printStatus(); // display updated status
-      delay(100);         // little delay just in case
+      host_printStatus(true); // display updated status
+      //delay(100);         // little delay just in case
     }
   }
 }
@@ -459,6 +474,7 @@ char *host_readLine() {
 
   bool done = false;
   while (!done) {
+    host_printStatus(false);
     // test if we want to enter sleep mode
     if (digitalRead(POWER_BUTTON) == 0) {
       host_goToSleep();
@@ -526,6 +542,8 @@ char host_getKey() {
 
 bool host_ESCPressed() {
   int c;
+  
+  host_printStatus(false);
   while (c = SRXEGetKey()) {
     inkeyChar = c;
     if (inkeyChar == KEY_ESC)
