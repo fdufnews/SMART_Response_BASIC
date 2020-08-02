@@ -151,6 +151,22 @@ void host_startupTone() {
   }
 }
 
+// host_notone
+//  halt tone generated on buzpin
+//
+void host_notone(){
+  if (!buzPin) return;
+    noTone(buzPin);
+}
+
+// host_tone
+//  generates a tone on buzpin
+//
+void host_tone(int note){
+  if (!buzPin) return;
+    tone(buzPin, note);
+}
+
 //    host_BASICFreeMem
 // returns free BASIC memory
 //
@@ -463,6 +479,8 @@ void host_setConf(void) {
     }
   }
 }
+
+
 char *host_readLine() {
   inputMode = 1;
 
@@ -693,4 +711,31 @@ bool host_saveExtEEPROM(char *fileName) {
   return true;
 }
 
+#endif
+
+#if SD_CARD
+#include <SPI.h>
+#include <SD.h>
+void host_directorySD(void){
+  
+}
+
+void host_saveSD(char *filename){
+  
+}
+
+void host_loadSD(char *filename){
+  
+}
+
+void host_removeSD(char *filename){
+  
+}
+
+/* 
+ *  void host_openSD();
+ *  void host_readSD();
+ *  void host_writeSD();
+ */
+ 
 #endif

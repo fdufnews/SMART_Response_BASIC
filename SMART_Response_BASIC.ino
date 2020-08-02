@@ -1,3 +1,4 @@
+
 /*  This is SMART Response XE Basic
      A basic interpreter for the SMART Response XE terminal
    This BASIC interpreter is based on Robin Edwards work (see note in basic.cpp)
@@ -7,13 +8,25 @@
    * TODO larger tokenBuf
    *
    * 01/2020
-   * added support for a status line on bottom of screen
+   * added support for a status line at bottom of screen
+   * 
+   * 07/2020
+   * added support for an SD card
  * */
 
 #include <SmartResponseXE.h>
 
 #include "basic.h"
 #include "host.h"
+
+// Define in host.h if using an SD card
+// should be connected to the SPI lines
+//
+
+#if SD_CARD
+#include <SPI.h>
+#include <SD.h>
+#endif
 
 // Define in host.h if using an external EEPROM e.g. 24LC256
 // Should be connected to the I2C pins
@@ -22,9 +35,6 @@
 
 // If using an external EEPROM, you'll also have to initialise it by
 // running once with the appropriate lines enabled in setup() - see below
-//
-// TODO
-//    support the 1Mb Flash EEPROM inside the SMART Response XE terminal
 //
 
 #if EXTERNAL_EEPROM
@@ -36,7 +46,7 @@ TwiMaster rtc(true);
 
 // buzzer pin, 0 = disabled/not present
 #define BUZZER_PIN    BUZZER
-// LED pin, 0 = disabled/not present
+// LED pin, 0 = disabled/not present, LED uses the default LED of the board
 #define LED_PIN    LED
 
 // BASIC

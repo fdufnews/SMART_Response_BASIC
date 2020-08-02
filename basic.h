@@ -72,9 +72,12 @@
 //   added SLEEP
 #define TOKEN_ASC               66
 #define TOKEN_SLEEP             67
+//   fdufnews 7/2020
+#define TOKEN_TONE              68
+#define TOKEN_NOTONE            69
 
 #define FIRST_IDENT_TOKEN 23
-#define LAST_IDENT_TOKEN 67
+#define LAST_IDENT_TOKEN 69
 
 #define FIRST_NON_ALPHA_TOKEN    8
 #define LAST_NON_ALPHA_TOKEN    22

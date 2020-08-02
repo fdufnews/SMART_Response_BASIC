@@ -47,7 +47,12 @@
       Function keys from F1 = 240 to F10 = 249 (F1 is top left and F10 is bottom right)
    added SLEEP
     SLEEP put terminal in low power mode, exit with power button
-
+   fdufnews 15/7/2020
+   added TONE
+    Set frequency generated on buzzer pin
+   added NOTONE
+    Stop frequency generated on buzzer pin
+    
 */
 
 // TODO
@@ -130,6 +135,12 @@ const char* const errorTable[] PROGMEM = {
 
 //   fdufnews 12/2019
 //   added ASC(string)
+//   added SLEEP
+//   fdufnews 7/2020
+//   added TONE(int)
+//   added NOTONE
+
+
 PROGMEM const TokenTableEntry tokenTable[] = {
   {0, 0}, {0, 0}, {0, 0}, {0, 0},
   {0, 0}, {0, 0}, {0, 0}, {0, 0},
@@ -147,7 +158,8 @@ PROGMEM const TokenTableEntry tokenTable[] = {
   {"RIGHT$", 2 | TKN_ARG1_TYPE_STR | TKN_RET_TYPE_STR}, {"MID$", 3 | TKN_ARG1_TYPE_STR | TKN_RET_TYPE_STR}, {"CLS", TKN_FMT_POST}, {"PAUSE", TKN_FMT_POST},
   {"POSITION", TKN_FMT_POST},  {"PIN", TKN_FMT_POST}, {"PINMODE", TKN_FMT_POST}, {"INKEY$", 0},
   {"SAVE", TKN_FMT_POST}, {"LOAD", TKN_FMT_POST}, {"PINREAD", 1}, {"ANALOGRD", 1},
-  {"DIR", TKN_FMT_POST}, {"DELETE", TKN_FMT_POST}, {"ASC",  1 | TKN_ARG1_TYPE_STR}, {"SLEEP", TKN_FMT_POST}
+  {"DIR", TKN_FMT_POST}, {"DELETE", TKN_FMT_POST}, {"ASC",  1 | TKN_ARG1_TYPE_STR}, {"SLEEP", TKN_FMT_POST},
+  {"TONE", 1},{"NOTONE", TKN_FMT_POST}
 };
 
 
@@ -1461,6 +1473,17 @@ int parse_PAUSE() {
   return 0;
 }
 
+// fdufnews 15/7/2020
+int parse_TONE(){
+  getNextToken();  // eat tone
+  int val = expectNumber();
+  if (val) return val;  // error
+  if (executeMode) {
+    host_tone((uint16_t)stackPopNum());
+  }
+  return 0; 
+}
+
 int parse_LIST() {
   getNextToken();
   uint16_t first = 0, last = 0;
@@ -1792,6 +1815,10 @@ int parseSimpleCmd() {
         host_goToSleep();
         host_showBuffer();
         break;
+      // fdufnews 15/7/2020
+      case TOKEN_NOTONE:
+        host_notone();
+        break;
       case TOKEN_DIR:
 #if EXTERNAL_EEPROM
         host_directoryExtEEPROM();
@@ -1846,6 +1873,7 @@ int parseStmts()
       case TOKEN_GOSUB: ret = parse_GOSUB(); break;
       case TOKEN_DIM: ret = parse_DIM(); break;
       case TOKEN_PAUSE: ret = parse_PAUSE(); break;
+      case TOKEN_TONE: ret = parse_TONE();break;
 
       case TOKEN_LOAD:
       case TOKEN_SAVE:
@@ -1866,6 +1894,8 @@ int parseStmts()
       case TOKEN_CLS:
       case TOKEN_DIR:
       case TOKEN_SLEEP:
+      // fdufnews 15/7/2020
+      case TOKEN_NOTONE:
         ret = parseSimpleCmd();
         break;
 
