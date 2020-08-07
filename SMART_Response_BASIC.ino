@@ -4,14 +4,14 @@
    This BASIC interpreter is based on Robin Edwards work (see note in basic.cpp)
 
    fdufnews 11/2019
-   *
-   * TODO larger tokenBuf
-   *
-   * 01/2020
-   * added support for a status line at bottom of screen
-   * 
-   * 07/2020
-   * added support for an SD card
+
+     TODO larger tokenBuf
+
+     01/2020
+     added support for a status line at bottom of screen
+
+     07/2020
+     added support for an SD card
  * */
 
 #include <SmartResponseXE.h>

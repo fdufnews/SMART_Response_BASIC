@@ -89,13 +89,16 @@ bool host_removeExtEEPROM(char *fileName);
 #include <SPI.h>
 #include <SD.h>
 void host_directorySD(void);
-void host_saveSD(char *filename); 
-void host_loadSD(char *filename);
-void host_removeSD(char *filename);
-/* 
- *  void host_openSD();
- *  void host_readSD();
- *  void host_writeSD();
- */
- 
+void printDirectory(File dir, int deep);
+boolean host_saveSD(char *filename);
+boolean host_loadSD(char *filename);
+boolean host_removeSD(char *filename);
+void host_mountSD(void);
+void host_unmountSD(void);
+/*
+    void host_openSD();
+    void host_readSD();
+    void host_writeSD();
+*/
+
 #endif

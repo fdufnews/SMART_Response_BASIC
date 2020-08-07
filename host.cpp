@@ -12,9 +12,13 @@
         added support of MENU key which calls setConf to change font
 
           DONE: ADC configuration (using 1.6V internal ref)
-          TODO: battery management, display battery state
-          DONE 01/2020: font as an option --> dynamic screen width and screen height
+          DONE: battery management, display battery state
+          DONE 01/2020: font as an option --> dy// fdufnews 6/08/2020namic screen width and screen height
           2/3 DONE: last line used for status (battery state, font used, freemem) but issue with battery state
+        
+        fdufnews 6/08/2020
+        added support for an SD card
+        added save, load, dir, mount, unmount statements to manage the SD card
 */
 
 #include "host.h"
@@ -41,6 +45,16 @@ char buzPin = 0;
 char ledPin = 0;
 char ledState = 0;
 
+#if SD_CARD
+#include <SPI.h>
+#include <SD.h>
+
+boolean sdCardPresent = false;  // true if an SD card has been initialized successfully
+char currentFile[13] = "";
+const char ok_card[] PROGMEM = " SD CARD OK ";
+const char ko_card[] PROGMEM = " NO SD CARD ";
+#endif
+
 char *fontName[4] = {"NORMAL", "SMALL", "MEDIUM", "LARGE"};
 
 struct sizeOfFont {
@@ -56,14 +70,16 @@ struct sizeOfScreen {
 // note that the screenSize definitions here under reserve one block of 8 lines to display status in all modes
 struct sizeOfScreen screenSize[4] = {{42, 16}, {64, 16}, {32, 8}, {25, 8}};
 
+// this structure holds all the information concerning the current screen configuration
+// it is updated every time a new font is selected.
 struct {
-  unsigned char currentFont;
-  unsigned char width;
-  unsigned char height;
-  unsigned char nbCar;
-  unsigned char nbLine;
-  unsigned int bufSize;
-  boolean lineWrap;
+  unsigned char currentFont;  // font currently in use
+  unsigned char width;          // width of the font
+  unsigned char height;         // height of the font
+  unsigned char nbCar;          // number of car per line
+  unsigned char nbLine;         // number of line per screen
+  unsigned int bufSize;         // size of the screen buffer
+  boolean lineWrap;             // line wrap flag (not used)
 } fontStatus = {FONT_NORMAL, 9, 8, 42, 16, 42 * 16, true};
 
 const char bytesFreeStr[] PROGMEM = "bytes free";
@@ -86,7 +102,12 @@ ISR(TIMER1_OVF_vect)        // interrupt service routine
   redraw = 1;
 }
 
-
+/*
+ * host_init
+ * Init parts specific to the host (display, dedicated I/Os)
+ * 
+ * 
+ */
 void host_init(int buzzer_Pin, int led_Pin) {
   char ledState = 0;
 
@@ -95,18 +116,24 @@ void host_init(int buzzer_Pin, int led_Pin) {
   ledPin = led_Pin;
   SRXEInit(0xe7, 0xd6, 0xa2); // initialize and clear display // CS, D/C, RESET
   host_setFont(FONT_NORMAL);
-  SRXEFill(0);
-  // set on/off button input
+  SRXEFill(0);     // clear display
+  // set on/off button as input
   pinMode(POWER_BUTTON, INPUT_PULLUP);
   // Blink the LED
-  #if SHOW_SPLASHSCREEN
-  host_splashscreen();
-  #endif
+#if SHOW_SPLASHSCREEN
+  host_splashscreen();  // displays the splashscreen
+#endif
   if (buzPin)
     pinMode(buzPin, OUTPUT);
-  SRXEFill(0);
+  SRXEFill(0);     // clear display
   initTimer();
-  host_setBatStat();
+#if SD_CARD
+  if (sdCardPresent = SD.begin(SD_CARD_CS))   // true if an sd card is present
+    strcpy_P(currentFile, ok_card);
+  else
+    strcpy_P(currentFile, ko_card);
+#endif
+  host_setBatStat();    // Initialize A0 for battery measurement
 }
 
 void host_sleep(long ms) {
@@ -114,8 +141,8 @@ void host_sleep(long ms) {
 }
 
 void host_digitalWrite(int pin, int state) {
-  if((ledPin!=0) && (pin==ledPin)) // If LED present and we are modifying its state
-    ledState=state;                // save its new state.
+  if ((ledPin != 0) && (pin == ledPin)) // If LED present and we are modifying its state
+    ledState = state;              // save its new state.
   digitalWrite(pin, state ? HIGH : LOW);
 }
 
@@ -131,6 +158,11 @@ void host_pinMode(int pin, int mode) {
   pinMode(pin, mode);
 }
 
+/*
+ * host_click
+ * Generates a short click
+ * 
+ */
 void host_click() {
   if (!buzPin) return;
   digitalWrite(buzPin, HIGH);
@@ -138,6 +170,11 @@ void host_click() {
   digitalWrite(buzPin, LOW);
 }
 
+/*
+ * host_startupTone
+ * A short "melody" after a reset
+ * 
+ */
 void host_startupTone() {
   if (!buzPin) return;
   for (int i = 1; i <= 2; i++) {
@@ -154,17 +191,17 @@ void host_startupTone() {
 // host_notone
 //  halt tone generated on buzpin
 //
-void host_notone(){
+void host_notone() {
   if (!buzPin) return;
-    noTone(buzPin);
+  noTone(buzPin);
 }
 
 // host_tone
 //  generates a tone on buzpin
 //
-void host_tone(int note){
+void host_tone(int note) {
   if (!buzPin) return;
-    tone(buzPin, note);
+  tone(buzPin, note);
 }
 
 //    host_BASICFreeMem
@@ -232,21 +269,21 @@ float host_getBatStat(void) {
 
 //    host_printStatus
 //  print system status on bottom line of display
-// Battery voltage, selected font, memory usage
+// Battery voltage, selected font, SD card state, memory usage
 // Memory usage is Free BASIC mem and Free C mem
-//  input 
+//  input
 //  boolean now: if true print status even if STATUS_RATE has not expired
 //  output nothing
 //
 void host_printStatus(boolean now) {
-  static uint32_t last_update=0L;
+  static uint32_t last_update = 0L;
   uint32_t currentMillis;
-    char buffer[43];
+  char buffer[43];
   char buf[16];
-  
+
   currentMillis = millis();
-  if(currentMillis - last_update > STATUS_RATE || now==true){ 
-    sprintf(buffer, " Bat: %4.4sV | Font: %6.6s | %5d/%5d ", host_floatToStr(host_getBatStat(), buf), fontName[fontStatus.currentFont], host_BASICFreeMem(), host_CFreeMem());
+  if (currentMillis - last_update > STATUS_RATE || now == true) {
+    sprintf(buffer, " %4.4sV| %6.6s | %12s | %05d/%04d ", host_floatToStr(host_getBatStat(), buf), fontName[fontStatus.currentFont], currentFile, host_BASICFreeMem(), host_CFreeMem());
     SRXEWriteString(0, 135 - 8 + 1, buffer, FONT_NORMAL, 0, 3);
     last_update = currentMillis;
   }
@@ -262,6 +299,11 @@ boolean host_setLineWrap(boolean wrap) {
   return wrap;
 }
 
+/*
+ * host_cls
+ * Clear screen and put cursor at home position
+ * 
+ */
 void host_cls() {
   memset(screenBuffer, 32, fontStatus.bufSize);
   memset(lineDirty, 1, fontStatus.nbLine);
@@ -278,31 +320,40 @@ void host_moveCursor(int x, int y) {
   curY = y;
 }
 
+
+/*
+ * host_showBuffer
+ * Updates display
+ * To speed things, only the lines tagged as dirty are redrawn.
+ * 
+ */
 void host_showBuffer() {
   for (int y = 0; y < fontStatus.nbLine; y++) {
-    if (lineDirty[y] || (inputMode && y == curY)) {
-      //oled.setCursor(0,y);
-      for (int x = 0; x < fontStatus.nbCar; x++) {
+    if (lineDirty[y] || (inputMode && y == curY)) {  // if line is tagged as changed or is the input line
+      for (int x = 0; x < fontStatus.nbCar; x++) {   // scan the cars of this line
         char c = screenBuffer[y * fontStatus.nbCar + x];
-        if (c < 32) c = ' ';
-        if (x == curX && y == curY && inputMode && flash) c = 127;
+        if (c < 32) c = ' ';     // ignore control cars
+        if (x == curX && y == curY && inputMode && flash) c = 127;  // cursor management
         char buf[2] = {0, 0};
         buf[0] = c;
-        //oled.print(c);
-        // quick and dirty way to do it
-        // should replace constants with font size information
         if (c != 127) {
-          SRXEWriteString(x * fontStatus.width, y * fontStatus.height, buf, fontStatus.currentFont, 3, 0);
+          SRXEWriteString(x * fontStatus.width, y * fontStatus.height, buf, fontStatus.currentFont, 3, 0);  // printable car
         } else {
           buf[0] = 0x20;
-          SRXEWriteString(x * fontStatus.width, y * fontStatus.height, buf, fontStatus.currentFont, 0, 3);
+          SRXEWriteString(x * fontStatus.width, y * fontStatus.height, buf, fontStatus.currentFont, 0, 3);  // cursor
         }
       }
-      lineDirty[y] = 0;
+      lineDirty[y] = 0;  // line marked as updated
     }
   }
 }
 
+
+/*
+ * scrollBuffer
+ * scrolls the display one line up
+ * 
+ */
 void scrollBuffer() {
   memcpy(screenBuffer, screenBuffer + fontStatus.nbCar, fontStatus.nbCar * (fontStatus.nbLine - 1));
   memset(screenBuffer + fontStatus.nbCar * (fontStatus.nbLine - 1), 32, fontStatus.nbCar);
@@ -310,6 +361,12 @@ void scrollBuffer() {
   curY--;
 }
 
+
+/*
+ * host_outputString
+ * Puts a string in the screen buffer starting at the cursor position
+ * 
+ */
 void host_outputString(char *str) {
   int pos = curY * fontStatus.nbCar + curX;
   while (*str) {
@@ -324,6 +381,11 @@ void host_outputString(char *str) {
   curY = pos / fontStatus.nbCar;
 }
 
+/*
+ * host_outputProgMemString
+ * Puts a string stored in PROGMEM in the screen buffer starting at the cursor position
+ * 
+ */
 void host_outputProgMemString(const char *p) {
   while (1) {
     unsigned char c = pgm_read_byte(p++);
@@ -332,6 +394,11 @@ void host_outputProgMemString(const char *p) {
   }
 }
 
+/*
+ * host_outputChar
+ * Puts a char in the screen buffer starting at the cursor position
+ * 
+ */
 void host_outputChar(char c) {
   int pos = curY * fontStatus.nbCar + curX;
   lineDirty[pos / fontStatus.nbCar] = 1;
@@ -344,6 +411,11 @@ void host_outputChar(char c) {
   curY = pos / fontStatus.nbCar;
 }
 
+/*
+ * host_outputInt
+ * Puts an int in the screen buffer starting at the cursor position
+ * 
+ */
 int host_outputInt(long num) {
   // returns len
   long i = num, xx = 1;
@@ -363,6 +435,11 @@ int host_outputInt(long num) {
   return c;
 }
 
+/*
+ * host_floatToStr
+ * Converts a float to its string representation
+ * 
+ */
 char *host_floatToStr(float f, char *buf) {
   // floats have approx 7 sig figs
   float a = fabs(f);
@@ -391,6 +468,11 @@ char *host_floatToStr(float f, char *buf) {
   return buf;
 }
 
+/*
+ * host_outputFloat
+ * Prints a float in the screen buffer starting at the cursor position
+ * 
+ */
 void host_outputFloat(float f) {
   char buf[16];
   host_outputString(host_floatToStr(f, buf));
@@ -400,7 +482,7 @@ void host_outputFloat(float f) {
 //   host_splashscreen
 //  displays a greeting screen
 //
-void host_splashscreen(void){
+void host_splashscreen(void) {
   const int startHit = 138;
   const int lengthArrow = 84;
   const int startArrow = startHit + 132;
@@ -408,12 +490,12 @@ void host_splashscreen(void){
   unsigned long pauseArrow = 500ul;
   unsigned long lastTimeArrow = 0;
   unsigned long currenTime = millis();
-  
-  SRXELoadBitmapRLE(0,0,bitmap_logo2_rle);
+
+  SRXELoadBitmapRLE(0, 0, bitmap_logo2_rle);
   SRXEWriteString(startHit, 110, "Hit a key         ", FONT_MEDIUM, 3, 1);
-  while (!SRXEGetKey()){
+  while (!SRXEGetKey()) {
     currenTime = millis();
-    if(currenTime - lastTimeArrow >= pauseArrow){
+    if (currenTime - lastTimeArrow >= pauseArrow) {
       SRXEWriteString(pos, 110, " ", FONT_MEDIUM, 3, 1);
       pos += 12;
       if (pos > startHit + 120 + lengthArrow) pos = startArrow;
@@ -424,6 +506,12 @@ void host_splashscreen(void){
 }
 #endif
 
+/*
+ * host_newLine
+ * Generates a linefeed
+ * Increments line position and scroll buffer if necessary
+ * 
+ */
 void host_newLine() {
   curX = 0;
   curY++;
@@ -434,23 +522,25 @@ void host_newLine() {
 }
 
 // Function that put the terminal in sleep mode
-// When waking up restore the display and the ADC configuration
+// When waking up restores the display and the ADC configuration
 void host_goToSleep(void) {
   if (ledPin) digitalWrite(ledPin, LOW); // if LED present switch it off
+  host_unmountSD();   // unmount SD card so it can be unplugged while the terminal is sleeping
   SRXESleep(); // go into sleep mode and wait for an event (on/off button)
   // returning from sleep
+  host_mountSD();     // try mounting the SD card just in case....
   // restore screen
-  #if SHOW_SPLASHSCREEN
+#if SHOW_SPLASHSCREEN
   host_splashscreen();
-  #endif
-  memset(lineDirty, 1, fontStatus.nbLine);
+#endif
+  memset(lineDirty, 1, fontStatus.nbLine);  // all line dirty so the screen will be completely refreshed
   host_showBuffer();
   if (ledPin) digitalWrite(ledPin, ledState); // If LED present restore its state
   host_setBatStat(); // restore ADC configuration
 }
 
 //    host_setConf
-//  Modify configuration
+//  Modifies configuration
 // UP and DOWN change font
 // MENU or ENTER returns to calling function
 //
@@ -480,7 +570,16 @@ void host_setConf(void) {
   }
 }
 
-
+/*
+ * host_readLine
+ * high level keyboard scanning loop
+ * wait for keyboard press
+ *      keeps status line updated
+ *      tests if power button depressed --> goto sleep
+ *      tests if menu key depressed --> goto into configuratin mode
+ *      fills input buffer until enter key is depressed
+ * 
+ */
 char *host_readLine() {
   inputMode = 1;
 
@@ -550,6 +649,12 @@ char *host_readLine() {
   return &screenBuffer[startPos];
 }
 
+/*
+ * host_getKey
+ * non blocking keyboard read
+ * returns 0 if no key pressed
+ * 
+ */
 char host_getKey() {
   char c = inkeyChar;
   inkeyChar = 0;
@@ -558,9 +663,16 @@ char host_getKey() {
   //else return 0;
 }
 
+/*
+ * host_ESCPressed
+ * updates the status line and tests if the escape key is depressed
+ * used during program execution to halt the interpreter
+ * escape key is square root
+ * 
+ */
 bool host_ESCPressed() {
   int c;
-  
+
   host_printStatus(false);
   while (c = SRXEGetKey()) {
     inkeyChar = c;
@@ -713,29 +825,157 @@ bool host_saveExtEEPROM(char *fileName) {
 
 #endif
 
+// fdufnews 6/08/2020
 #if SD_CARD
-#include <SPI.h>
-#include <SD.h>
-void host_directorySD(void){
-  
+/*
+   host_directorySD
+
+   Print the directory listing of the SD Card on screen
+
+   INPUT nothing
+
+   OUTPUT nothing
+
+*/
+void host_directorySD(void) {
+  if (!sdCardPresent) return;
+  File dir, entry;
+  dir = SD.open("/");  // open card root
+  byte linenum = 1;    // initialize line count
+  do {
+    entry =  dir.openNextFile();      // get the next file
+    if (!entry) break;                // if no more entry exit the loop
+    if (!entry.isDirectory()) {       // if it is not a directory display info
+      host_outputString(entry.name());  // display name of file
+      host_moveCursor(16, curY);        // move cursor to align size information
+      host_outputInt(entry.size());     // display size of file
+      linenum++;                        // increment line count
+      host_showBuffer();               // display the new line
+      if (linenum == fontStatus.nbLine) {  // if we have reach bottom of screen
+        linenum = 1;                        // reset line count
+        host_moveCursor(21, curY);        // move cursor to the right
+        host_outputString(">>");          // displays >> to tell there are more files
+        host_showBuffer();               // display the new line
+        while (SRXEGetKey() == 0);          // wait for a keypress
+        host_moveCursor(21, curY);        // move cursor to the right
+        host_outputString("  ");          // erase the >>
+        host_showBuffer();               // display the new line
+      }
+      host_newLine();                   // scroll one line and continue
+    }
+    entry.close();                      // close file
+  } while (true);
+  dir.close();                          // close root dir
 }
 
-void host_saveSD(char *filename){
-  
+
+/*
+   host_saveSD
+
+   Save the current BASIC program to a file on SD Card
+   If the file already exist it is deleted first
+
+   INPUT
+      filename : the name of the file is a 8+3 string
+
+   OUTPUT
+      true if succeeded
+
+*/
+boolean host_saveSD(char *filename) {
+  File myFile;
+  if (!sdCardPresent) return false;
+  if (SD.exists(filename)) SD.remove(filename); // if file already exist then delete it
+  myFile = SD.open(filename, FILE_WRITE); // open the file in write mode
+  unsigned long count = myFile.write(mem, sysPROGEND); // write basic program buffer to sd card
+  myFile.close();
+  if (count == (unsigned long)sysPROGEND) {
+    strcpy(currentFile, filename);
+    return true;
+  } else return false;
 }
 
-void host_loadSD(char *filename){
-  
+/*
+   host_loadSD
+
+   Load a file from the SD Card into memory as the current BASIC program
+
+   INPUT
+      filename : the name of the file is a 8+3 string
+
+   OUTPUT
+      true if succeeded
+
+*/
+boolean host_loadSD(char *filename) {
+  File myFile;
+  if (!sdCardPresent) return false;
+  myFile = SD.open(filename, FILE_READ); // open the file in read mode
+  if (!myFile) return false;
+  unsigned long filesize = myFile.size();
+  unsigned long count = myFile.read(mem, filesize); // copy file to basic program buffer
+  myFile.close();
+  sysPROGEND = (unsigned int)filesize;
+  strcpy(currentFile, filename);
+  return true;
 }
 
-void host_removeSD(char *filename){
-  
+/*
+   host_removeSD
+
+   Delete a file from the SD Card
+
+   INPUT
+      filename : the name of the file is a 8+3 string
+
+   OUTPUT
+      true if succeeded
+
+*/
+boolean host_removeSD(char *filename) {
+  if (!sdCardPresent) return false;
+  if (SD.exists(filename)) SD.remove(filename);
+  return true;
 }
 
-/* 
- *  void host_openSD();
- *  void host_readSD();
- *  void host_writeSD();
- */
- 
+/*
+   host_unmountSD
+
+   unmount the SD card in order to extract it
+
+   INPUT nothing
+
+   OUTPUT nothing
+*/
+void host_unmountSD(void) {
+  SD.end();
+  sdCardPresent = false;
+  strcpy_P(currentFile, ko_card);
+  host_printStatus(true);
+}
+
+/*
+   host_mountSD
+
+   mount the SD card
+
+   INPUT nothing
+
+   OUTPUT nothing
+*/
+void host_mountSD(void) {
+  if (sdCardPresent = SD.begin(SD_CARD_CS))   // true if an sd card is present
+    strcpy_P(currentFile, ok_card);
+  else
+    strcpy_P(currentFile, ko_card);
+  host_printStatus(true);
+}
+
+
+/*
+    void host_openSD();
+    void host_readSD();
+    void host_writeSD();
+*/
+
 #endif

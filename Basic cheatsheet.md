@@ -47,7 +47,11 @@ PIN pinNum, value (0 = low, non-zero = high)
 PINMODE pinNum, mode ( 0 = input, 1 = output)
 LOAD (from internal EEPROM)
 SAVE (to internal EEPROM) e.g. use SAVE + to set auto-run on boot flag
-LOAD "filename", SAVE "filename, DIR, DELETE "filename" if using with external EEPROM.
+LOAD "filename", SAVE "filename, DIR, DELETE "filename" if using with external EEPROM or SD card
+TONE value play a tone at value Hertz until NOTONE
+NOTONE stop playing a TONE
+MOUNT mount the SD card in order to access the files
+UNMOUNT unmount the SD card so it can be extracted
 ```
 
 "Pseudo-identifiers"
