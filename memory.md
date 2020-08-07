@@ -52,6 +52,7 @@ Each line starts with
 | int | line number |
 
 Next are tokens as defined in basic.h
+```
 #define TOKEN_EOL       0
 #define TOKEN_IDENT     1   // special case - identifier follows
 #define TOKEN_INTEGER   2   // special case - integer follows (line numbers only)
@@ -72,7 +73,7 @@ up to
 #define TOKEN_SLEEP     67
 #define TOKEN_TONE      68
 #define TOKEN_NOTONE    69
-
+```
 Lines are terminated with TOKEN_EOL (00)
 There is no token indicating end of program. End of program is detected when program pointer equates sysPROGEND.
 
