@@ -47,11 +47,11 @@ PIN pinNum, value (0 = low, non-zero = high)
 PINMODE pinNum, mode ( 0 = input, 1 = output)
 LOAD (from internal EEPROM)
 SAVE (to internal EEPROM) e.g. use SAVE + to set auto-run on boot flag
-LOAD "filename", SAVE "filename, DIR, DELETE "filename" if using with external EEPROM or SD card
-TONE value play a tone at value Hertz until NOTONE
-NOTONE stop playing a TONE
-MOUNT mount the SD card in order to access the files
-UNMOUNT unmount the SD card so it can be extracted
+LOAD "filename", SAVE "filename, DIR, DELETE "filename" if using with external EEPROM or SD card. Concerning SD card, the filename is limited to 8 characters. the software adds the ".BAS" extension. Concerning SD card, the filename is limited to 8 characters. the software adds the ".BAS" extension.
+MOUNT force the detection of the SD card. Necessary if it has been inserted when the terminal is running. Mount is made at reset and when restarting after a sleep
+UNMOUNT close all the files and prepare the card to be extracted. UNMMOUNT is made when entering sleep.
+TONE frequency_to_play Play a sound in the piezo buzzer
+NOTONE stop the tone
 ```
 
 "Pseudo-identifiers"
@@ -73,3 +73,4 @@ MID$(string,start,n)
 PINREAD(pin) - see Arduino digitalRead()
 ANALOGRD(pin) - see Arduino analogRead()
 ```
+Usually, a BASIC program can be halted with a CTRL+C. As there are no control keys on the terminal, the square root key has been chosen for that.

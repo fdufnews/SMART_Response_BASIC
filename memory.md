@@ -1,6 +1,6 @@
 Usage of memory in BASIC
 
-As I spent some time understanding how mem[] was used, I have made this memo to keep the information for later use
+As I spent some time understanding how mem[] was used, I have made this memo to keep trace of the information for later use
 
 # Memory map
 mem[] size is defined in basic.h
@@ -74,4 +74,8 @@ up to
 #define TOKEN_NOTONE    69
 
 Lines are terminated with TOKEN_EOL (00)
-There is no token indicating end of program. End of program is detected when program pointer equates sysPROGEND
+There is no token indicating end of program. End of program is detected when program pointer equates sysPROGEND.
+
+The files on the SD card are a dump of the basic program space in mem so they have the same form
+
+A file in the EEPROM has a header with the length of the file, the name of the file, the length of the program, the program and a 00 00 trailer.
