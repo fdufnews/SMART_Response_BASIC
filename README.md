@@ -35,11 +35,11 @@ Prerequisites
 
 2. (Optional) A Piezoelectric buzzer for keyboard clicks and other sounds [see hack on the github of the hardware](https://github.com/fdufnews/SMART-Response-XE-schematics).
 
-3. (Optional) An LED to show some status or to help debug software see hack on the github of the hardware.
+3. (Optional) An LED to show some status or to help debug software [see hack on the github of the hardware](https://github.com/fdufnews/SMART-Response-XE-schematics).
 
 4. (Optionnal) An SD card reader in order to save/restore progr to show some status or to help debug software [see hack on the github of the hardware](https://github.com/fdufnews/SMART-Response-XE-schematics).
 
-5. (Optionnal) An SD card reader in order to save/restore program
+5. (Optionnal) An SD card reader in order to save/restore program [see hack on the github of the hardware](https://github.com/fdufnews/SMART-Response-XE-schematics).
 
    
 
@@ -48,7 +48,7 @@ Getting started
 
 1. Download the zip file, unpack and copy the *folder* to your arduino sketches directory.
 
-2. Install the [SMART response XE library](https://github.com/fdufnews/SMART-Response-XE-Low_level) it is [bitbank2's library](https://github.com/bitbank2/SmartResponseXE) with some modification. Unzip the file and copy the *folder* in a hardware directory as explained in the redme.md of the library.
+2. Install the [SMART response XE library](https://github.com/fdufnews/SMART-Response-XE-Low_level) it is [bitbank2's library](https://github.com/bitbank2/SmartResponseXE) with some modification. Unzip the file and copy the *folder* in a hardware directory as explained in the readme.md of the library.
 
 
 BASIC Language
