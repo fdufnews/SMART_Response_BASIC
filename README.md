@@ -78,7 +78,7 @@ Only the addition operator is supported on strings (plus the functions below).
 
 CommandsDownload the zip file, unpack and copy the folder to your arduino sketches directory.
 
-Install the SMART response XE library it is bitbank2's library with some modification. Unzip the file and copy the folder in a hardware directory as explained in the redme.md of the library.
+Install the SMART response XE library it is bitbank2's library with some modification. Unzip the file and copy the folder in a hardware directory as explained in the readme.md of the library.
 
 ```
 PRINT <expr>;<expr>... e.g. PRINT "A=";a
@@ -143,18 +143,18 @@ In any mode, 8 lines are kept on bottom of screen to display status of the syste
 First the state of the battery, the font used, the state of the SD card, the memory usage.
 
 * The system gives the user the option to switch from one font to another. There are 4 fonts:
-        * **normal**, using a 9x8 matrix and giving 17 lines of 42 characters
-        * **small**, using a 6x8 matrix and giving 17 lines of 64 characters (really, really small difficult to use for poor old eyes)
-        * **medium**, using a 12x16 matrix and giving 8 lines of 32 characters
-        * **large**, using a 15x16 matrix and giving 8 lines of 25 characters
+  * **normal**, using a 9x8 matrix and giving 17 lines of 42 characters
+  * **small**, using a 6x8 matrix and giving 17 lines of 64 characters (really, really small difficult to use for poor old eyes)
+  * **medium**, using a 12x16 matrix and giving 8 lines of 32 characters
+  * **large**, using a 15x16 matrix and giving 8 lines of 25 characters
 The medium and large font leave 8 lines at bottom of screen so it was decided to do the same for the normal and small one. Theese 8 lines are used to display the status.
 * SD card state, can be one of:
-        * NO SD CARD
-        * SD CARD OK
-        * the name of the last loaded or saved file 
+  * NO SD CARD
+  * SD CARD OK
+  * the name of the last loaded or saved file 
 * Memory usage displays 2 numbers:
-        * BASIC free mem, the BASIC interpreter has a reserved buffer used to store program and data. The value displayed gives how much of the buffer is free
-        * C free mem, the second number is the size of the stack left to the C that is running the interpreter
+  * BASIC free mem, the BASIC interpreter has a reserved buffer used to store program and data. The value displayed gives how much of the buffer is free
+  * C free mem, the second number is the size of the stack left to the C that is running the interpreter
 
 Currently, BASIC has a 10kB buffer and the remaining 6kB are for C. After setup, there are bit less than 4kB of free RAM for C. As much of the memory is allocated during setup, 4kB seems to be very conservative. It can probably be reduced if BASIC interpreter needs more free memory. MEMORY_SIZE, defined in basic.h, defines the size of the BASIC memory. For detailed information on memory usage see [memory.md](memory.md)
 
