@@ -1,6 +1,3 @@
-
-# Currently under development
-
 SMART Response Basic
 =============
 
@@ -156,7 +153,7 @@ The medium and large font leave 8 lines at bottom of screen so it was decided to
   * BASIC free mem, the BASIC interpreter has a reserved buffer used to store program and data. The value displayed gives how much of the buffer is free
   * C free mem, the second number is the size of the stack left to the C that is running the interpreter
 
-Currently, BASIC has a 10kB buffer and the remaining 6kB are for C. After setup, there are bit less than 4kB of free RAM for C. As much of the memory is allocated during setup, 4kB seems to be very conservative. It can probably be reduced if BASIC interpreter needs more free memory. MEMORY_SIZE, defined in basic.h, defines the size of the BASIC memory. For detailed information on memory usage see [memory.md](memory.md)
+Currently, BASIC has a 10kB buffer and the remaining 6kB are for C. After setup, there are a bit less than 4kB of free RAM for C. As much of the memory is allocated during setup, 4kB seems to be very conservative. It can probably be reduced if BASIC interpreter needs more free memory. MEMORY_SIZE, defined in basic.h, defines the size of tAbouthe BASIC memory. For detailed information on memory usage see [memory.md](memory.md)
 
 Not part of the BASIC language, there is support for the MENU key (SYM + space).
 That key is used to make a call to the host_setConf function in which user can change the font used with the display.
