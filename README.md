@@ -53,86 +53,8 @@ Getting started
 
 BASIC Language
 --------------
-Variables names can be up to 8 alphanumeric characters but start with a letter e.g. a, bob32
-String variable names must end in $ e.g. a$, bob32$
-Case is ignored (for all identifiers). BOB32 is the same as Bob32. print is the same as PRINT
+See [Basic Cheatsheet](BasicCheatsheet.md)
 
-Array variables are independent from normal variables. So you can use both:
-```
-LET a = 5
-DIM a(10)
-```
-There is no ambiguity, since a on its own refers to the simple variable 'a', and a(n) referes to an element of the 'a' array.
-
-```
-Arithmetic operators: + - * / MOD
-Comparisons: <> (not equals) > >= < <=
-Logical: AND, OR, NOT
-```
-
-Expressions can be numerical e.g. 5*(3+2), or string "Hello "+"world".
-Only the addition operator is supported on strings (plus the functions below).
-
-CommandsDownload the zip file, unpack and copy the folder to your arduino sketches directory.
-
-Install the SMART response XE library it is bitbank2's library with some modification. Unzip the file and copy the folder in a hardware directory as explained in the readme.md of the library.
-
-```
-PRINT <expr>;<expr>... e.g. PRINT "A=";a
-LET variable = <expr> e.g. LET A$="Hello".
-variable = <expr> e.g. A=5
-LIST [start],[end] e.g. LIST or LIST 10,100
-RUN [lineNumber]
-GOTO lineNumber
-REM <comment> e.g. REM ** My Program ***
-STOP
-CONT (continue from a STOP)
-INPUT variable e.g. INPUT a$ or INPUT a(5,3)
-IF <expr> THEN cmd e.g. IF a>10 THEN a = 0: GOTO 20
-FOR variable = start TO end STEP step
-NEXT variable
-NEW
-GOSUB lineNumber
-RETURN
-DIM variable(n1,n2...)
-CLS
-SLEEP put terminal in low power mode, switch on with power button
-PAUSE milliseconds
-POSITION x,y sets the cursor
-PIN pinNum, value (0 = low, non-zero = high)
-PINMODE pinNum, mode ( 0 = input, 1 = output)
-LOAD (from internal EEPROM)
-SAVE (to internal EEPROM) e.g. use SAVE + to set auto-run on boot flag
-LOAD "filename", SAVE "filename, DIR, DELETE "filename" if using with external EEPROM or an SD card. Concerning SD card, the filename is limited to 8 characters. the software adds the ".BAS" extension.
-MOUNT force the detection of the SD card. Necessary if it has been inserted when the terminal is running. Mount is made at reset and when restarting after a sleep
-UNMOUNT close all the files and prepare the card to be extracted. UNMMOUNT is made when entering sleep.
-TONE frequency_to_play Play a sound in the piezo buzzer
-NOTONE stop the tone
-```
-
-"Pseudo-identifiers"
-```
-INKEY$ - returns (and eats) the last key pressed buffer (non-blocking). e.g. PRINT INKEY$.
-    The function was slightly modified to return any key code (even if less than 32) in order to receive function keys of the SMART Response Terminal
-      Menu = 1
-      Cursor keys : LEFT = 2, RIGHT = 3, UP= 4, DOWN = 5
-      Function keys from F1 = 240 to F10 = 249 (F1 is top left and F10 is bottom right)
-RND - random number betweeen 0 and 1. e.g. LET a = RND
-```
-
-Functions
-```
-LEN(string) e.g. PRINT LEN("Hello") -> 5
-ASC(string) e.g. PRINT ASC("ABCD") -> 65 (ASCII code of A)
-VAL(string) e.g. PRINT VAL("1+2")
-INT(number) e.g. INT(1.5)-> 1
-STR$(number) e.g. STR$(2) -> "2"
-LEFT$(string,n)
-RIGHT$(string,n)
-MID$(string,start,n)
-PINREAD(pin) - see Arduino digitalRead()
-ANALOGRD(pin) - see Arduino analogRead()
-```
 
 Configuration / Status
 -------------
@@ -153,7 +75,7 @@ The medium and large font leave 8 lines at bottom of screen so it was decided to
   * BASIC free mem, the BASIC interpreter has a reserved buffer used to store program and data. The value displayed gives how much of the buffer is free
   * C free mem, the second number is the size of the stack left to the C that is running the interpreter
 
-Currently, BASIC has a 10kB buffer and the remaining 6kB are for C. After setup, there are a bit less than 4kB of free RAM for C. As much of the memory is allocated during setup, 4kB seems to be very conservative. It can probably be reduced if BASIC interpreter needs more free memory. MEMORY_SIZE, defined in basic.h, defines the size of tAbouthe BASIC memory. For detailed information on memory usage see [memory.md](memory.md)
+Currently, BASIC has a 10kB buffer and the remaining 6kB are for C. After setup, there are a bit less than 4kB of free RAM for C. As much of the memory is allocated during setup, 4kB seems to be very conservative. It can probably be reduced if BASIC interpreter needs more free memory. MEMORY_SIZE, defined in basic.h, defines the size of the BASIC memory. For detailed information on memory usage see [memory.md](memory.md)
 
 Not part of the BASIC language, there is support for the MENU key (SYM + space).
 That key is used to make a call to the host_setConf function in which user can change the font used with the display.

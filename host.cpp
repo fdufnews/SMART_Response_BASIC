@@ -37,13 +37,14 @@ int timer1_counter;
 // Allocates a buffer sized for the larger screen mode
 char screenBuffer[MAX_SCREEN_WIDTH * MAX_SCREEN_HEIGHT];
 char lineDirty[MAX_SCREEN_HEIGHT];
-int curX = 0, curY = 0;
+int curX = 0, curY = 0;   // current position in the screen buffer
+byte lineCount=0;         // count how many lines were scrolled (for dir and list)
 volatile char flash = 0, redraw = 0;
 char inputMode = 0;
 char inkeyChar = 0;
-char buzPin = 0;
-char ledPin = 0;
-char ledState = 0;
+char buzPin = 0;    // not 0 if buzzer present
+char ledPin = 0;    // not 0 if LED wired
+char ledState = 0;  // current state of the LED (to restore state after a sleep)
 
 #if SD_CARD
 #include <SPI.h>
@@ -352,13 +353,14 @@ void host_showBuffer() {
 /*
  * scrollBuffer
  * scrolls the display one line up
- * 
+ * count how many line were scrolled (used in newLine for list and dir, and maybe others)
  */
 void scrollBuffer() {
-  memcpy(screenBuffer, screenBuffer + fontStatus.nbCar, fontStatus.nbCar * (fontStatus.nbLine - 1));
-  memset(screenBuffer + fontStatus.nbCar * (fontStatus.nbLine - 1), 32, fontStatus.nbCar);
-  memset(lineDirty, 1, fontStatus.nbLine);
-  curY--;
+  memcpy(screenBuffer, screenBuffer + fontStatus.nbCar, fontStatus.nbCar * (fontStatus.nbLine - 1)); // move content of screenbuffer one line up
+  memset(screenBuffer + fontStatus.nbCar * (fontStatus.nbLine - 1), 32, fontStatus.nbCar);          // clear bottom line in the buffer
+  memset(lineDirty, 1, fontStatus.nbLine);    // tag last line as dirty 
+  lineCount++;     // count the total of scrolled lines
+  curY--;           // update cursor position
 }
 
 
@@ -520,6 +522,29 @@ void host_newLine() {
   memset(screenBuffer + fontStatus.nbCar * (curY), 32, fontStatus.nbCar);
   lineDirty[curY] = 1;
 }
+
+/*
+ * host_newLine
+ * Generates a linefeed
+ * Increments line position and scroll buffer if necessary
+ * If one screen length has been scrolled wait for a keypress before scrolling
+ *
+ * Input
+ *      num : if num = 0 init lineCount else test if bottom of screen has been reached
+ * 
+ */
+void host_newLine(byte num) {
+    if (num == 0){
+        lineCount=1;        // initialize count
+    } else {
+        if(lineCount >= fontStatus.nbLine){  // if bottom of screen is reach
+            lineCount=1;                       // reset count
+            while(SRXEGetKey() == 0);       // wait for a keypress
+        }
+    }
+    host_newLine();
+}
+
 
 // Function that put the terminal in sleep mode
 // When waking up restores the display and the ADC configuration
@@ -841,27 +866,16 @@ void host_directorySD(void) {
   if (!sdCardPresent) return;
   File dir, entry;
   dir = SD.open("/");  // open card root
-  byte linenum = 1;    // initialize line count
+  host_newLine(0);                      // initialize count of newlines
   do {
-    entry =  dir.openNextFile();      // get the next file
-    if (!entry) break;                // if no more entry exit the loop
-    if (!entry.isDirectory()) {       // if it is not a directory display info
+    entry =  dir.openNextFile();        // get the next file
+    if (!entry) break;                  // if no more entry exit the loop
+    if (!entry.isDirectory()) {         // if it is not a directory display info
       host_outputString(entry.name());  // display name of file
       host_moveCursor(16, curY);        // move cursor to align size information
       host_outputInt(entry.size());     // display size of file
-      linenum++;                        // increment line count
-      host_showBuffer();               // display the new line
-      if (linenum == fontStatus.nbLine) {  // if we have reach bottom of screen
-        linenum = 1;                        // reset line count
-        host_moveCursor(21, curY);        // move cursor to the right
-        host_outputString(">>");          // displays >> to tell there are more files
-        host_showBuffer();               // display the new line
-        while (SRXEGetKey() == 0);          // wait for a keypress
-        host_moveCursor(21, curY);        // move cursor to the right
-        host_outputString("  ");          // erase the >>
-        host_showBuffer();               // display the new line
-      }
-      host_newLine();                   // scroll one line and continue
+      host_showBuffer();                // display the new line
+      host_newLine(1);                  // scroll one line and wait if necessary
     }
     entry.close();                      // close file
   } while (true);
@@ -951,6 +965,7 @@ void host_unmountSD(void) {
   SD.end();
   sdCardPresent = false;
   strcpy_P(currentFile, ko_card);
+ // digitalWrite(SD_CARD_CS,HIGH);
   host_printStatus(true);
 }
 

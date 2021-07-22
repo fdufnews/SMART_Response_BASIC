@@ -68,21 +68,27 @@
 #define TOKEN_ANALOGRD  63
 #define TOKEN_DIR       64
 #define TOKEN_DELETE    65
-//   fdufnews 12/2019
+//   fdufnews 2019/12
 //   added ASC(string)
 //   added SLEEP
 #define TOKEN_ASC       66
 #define TOKEN_SLEEP     67
-//   fdufnews 7/2020
+//   fdufnews 2020/07
 #define TOKEN_TONE      68
 #define TOKEN_NOTONE    69
-// fdufnews 6/08/2020
+// fdufnews 2020/08/06
 #define TOKEN_MOUNT     70
 #define TOKEN_UNMOUNT   71
+// fdufnews 2021/04/01
+#define TOKEN_HELP      72
+
+// fdufnews 2021/07/22
+#define TOKEN_PEEK      73
+#define TOKEN_POKE      74
 
 
 #define FIRST_IDENT_TOKEN 23
-#define LAST_IDENT_TOKEN 71
+#define LAST_IDENT_TOKEN 74
 
 #define FIRST_NON_ALPHA_TOKEN           8
 #define LAST_NON_ALPHA_TOKEN            22

@@ -37,7 +37,7 @@
     - PIN <pin>, <state> - sets the pin high (non zero) or low (zero)
     - PINREAD(pin) returns pin value, ANALOGRD(pin) for analog pins
    ---------------------------------------------------------------------------
-   fdufnews 12/2019
+   fdufnews 2019/12
    added ASC(string)
     ASC returns the ASCII code of the first car in the string
    modified INKEY$
@@ -47,11 +47,21 @@
       Function keys from F1 = 240 to F10 = 249 (F1 is top left and F10 is bottom right)
    added SLEEP
     SLEEP put terminal in low power mode, exit with power button
-   fdufnews 15/7/2020
+   fdufnews 2020/7/15
    added TONE
     Set frequency generated on buzzer pin
    added NOTONE
     Stop frequency generated on buzzer pin
+   fdufnews 2020/08/06
+    added MOUNT
+    added UNMOUNT
+   fdufnews 2021/04/01
+    added HELP
+   fdufnews 2021/07/22
+   added PEEK
+    returns content of a memory cell
+   added POKE
+    write a value in a memory cell
 
 */
 
@@ -133,13 +143,19 @@ const char* const errorTable[] PROGMEM = {
 #define TKN_FMT_POST        0x40
 #define TKN_FMT_PRE     0x80
 
-//   fdufnews 12/2019
+// fdufnews 2019/12
 //   added ASC(string)
 //   added SLEEP
-//   fdufnews 7/2020
+// fdufnews 2020/7
 //   added TONE(int)
 //   added NOTONE
-
+// fdufnews 2020/08/06
+//   added MOUNT
+//   added UNMOUNT
+// fdufnews 2021/04/01
+//   added HELP
+// fdufnews 2021/07/22
+//   added PEEK
 
 PROGMEM const TokenTableEntry tokenTable[] = {
   {0, 0}, {0, 0}, {0, 0}, {0, 0},
@@ -159,7 +175,8 @@ PROGMEM const TokenTableEntry tokenTable[] = {
   {"POSITION", TKN_FMT_POST},  {"PIN", TKN_FMT_POST}, {"PINMODE", TKN_FMT_POST}, {"INKEY$", 0},
   {"SAVE", TKN_FMT_POST}, {"LOAD", TKN_FMT_POST}, {"PINREAD", 1}, {"ANALOGRD", 1},
   {"DIR", TKN_FMT_POST}, {"DELETE", TKN_FMT_POST}, {"ASC",  1 | TKN_ARG1_TYPE_STR}, {"SLEEP", TKN_FMT_POST},
-  {"TONE", 1}, {"NOTONE", TKN_FMT_POST}, {"MOUNT", TKN_FMT_POST}, {"UNMOUNT", TKN_FMT_POST}
+  {"TONE", 1}, {"NOTONE", TKN_FMT_POST}, {"MOUNT", TKN_FMT_POST}, {"UNMOUNT", TKN_FMT_POST},
+  {"HELP",TKN_FMT_POST}, {"PEEK", 1}, {"POKE", 2}
 };
 
 
@@ -217,13 +234,15 @@ void printTokens(unsigned char *p) {
 
 void listProg(uint16_t first, uint16_t last) {
   unsigned char *p = &mem[0];
+  host_newLine(0);
   while (p < &mem[sysPROGEND]) {
     uint16_t lineNum = *(uint16_t*)(p + 2);
     if ((!first || lineNum >= first) && (!last || lineNum <= last)) {
       host_outputInt(lineNum);
       host_outputChar(' ');
       printTokens(p + 4);
-      host_newLine();
+      host_showBuffer();
+      host_newLine(1);
     }
     p += *(uint16_t *)p;
   }
@@ -1138,6 +1157,12 @@ int parseFnCallExpr() {
         tmp = (int)stackPopNum();
         if (!stackPushNum(host_analogRead(tmp))) return ERROR_OUT_OF_MEMORY;
         break;
+      case TOKEN_PEEK:
+        tmp = (uint16_t)stackPopNum();
+        uint8_t* ptr;
+        ptr = (uint8_t*)tmp;
+        if (!stackPushNum(*ptr)) return ERROR_OUT_OF_MEMORY;
+        break;
       default:
         return ERROR_UNEXPECTED_TOKEN;
     }
@@ -1284,6 +1309,7 @@ int parsePrimary() {
     case TOKEN_MID:
     case TOKEN_PINREAD:
     case TOKEN_ANALOGRD:
+    case TOKEN_PEEK:
       return parseFnCallExpr();
 
     default:
@@ -1534,6 +1560,15 @@ int parse_PRINT() {
   return 0;
 }
 
+// POKE
+// write value in memory at address
+void parse_Poke(uint16_t address, uint8_t value){
+  uint8_t* ptr;
+
+  ptr = (uint8_t*) address;
+  *ptr = value;
+}
+
 // parse a stmt that takes two int parameters
 // e.g. POSITION 3,2
 int parseTwoIntCmd() {
@@ -1559,6 +1594,8 @@ int parseTwoIntCmd() {
       case TOKEN_PINMODE:
         host_pinMode(first, second);
         break;
+      case TOKEN_POKE:
+        parse_Poke(first, second);
     }
   }
   return 0;
@@ -1759,7 +1796,7 @@ int parseLoadSaveCmd() {
         if (!host_loadExtEEPROM(fileName))
           return ERROR_BAD_PARAMETER;
       }
-      else if (op == Thost_removeExtEEPROMOKEN_DELETE) {
+      else if (op == host_removeExtEEPROM) {
         if (!host_removeExtEEPROM(fileName))
           return ERROR_BAD_PARAMETER;
       }
@@ -1795,6 +1832,18 @@ int parseLoadSaveCmd() {
       else
         return ERROR_UNEXPECTED_CMD;
     }
+  }
+  return 0;
+}
+
+int printHelp(void){
+  host_newLine(0);                      // initialize count of newlines
+  for (int i = FIRST_IDENT_TOKEN; i <= LAST_IDENT_TOKEN; i++){
+    host_outputString((char*) pgm_read_word(&tokenTable[i].token));
+//    if (i < LAST_IDENT_TOKEN) host_outputString(" ,");
+//    if (i == LAST_IDENT_TOKEN) host_newLine();
+    host_showBuffer();
+    host_newLine(1);
   }
   return 0;
 }
@@ -1858,6 +1907,9 @@ int parseSimpleCmd() {
         host_directorySD();
 #endif
         break;
+      case TOKEN_HELP:
+        printHelp();
+        break;
     }
   }
   return 0;
@@ -1918,6 +1970,7 @@ int parseStmts()
       case TOKEN_POSITION:
       case TOKEN_PIN:
       case TOKEN_PINMODE:
+      case TOKEN_POKE:
         ret = parseTwoIntCmd();
         break;
 
@@ -1932,6 +1985,7 @@ int parseStmts()
       case TOKEN_NOTONE:
       case TOKEN_MOUNT:
       case TOKEN_UNMOUNT:
+      case TOKEN_HELP:
         ret = parseSimpleCmd();
         break;
 

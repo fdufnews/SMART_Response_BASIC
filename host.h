@@ -68,6 +68,7 @@ int host_outputInt(long val);
 void host_splashscreen(void);
 #endif
 void host_newLine();
+void host_newLine(byte num);
 void host_goToSleep();
 char *host_readLine();
 char host_getKey();
