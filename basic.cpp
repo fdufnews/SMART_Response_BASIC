@@ -1802,7 +1802,7 @@ int parseLoadSaveCmd() {
       }
 #endif
 #if SD_CARD
-      char fileName[MAX_FILENAME_LEN + 1];  // added 4 to handle a .BAS extension
+      char fileName[MAX_FILENAME_LEN + 1];
       if (strlen(stackGetStr()) > MAX_FILENAME_LEN)
         return ERROR_BAD_PARAMETER;
       strcpy(fileName, stackPopStr());
