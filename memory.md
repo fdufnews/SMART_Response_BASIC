@@ -1,4 +1,4 @@
-Usage of memory in BASIC
+# Usage of memory in BASIC
 
 As I spent some time understanding how mem[] was used, I have made this memo to keep trace of the information for later use
 

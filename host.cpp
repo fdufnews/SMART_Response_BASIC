@@ -51,10 +51,10 @@ char ledState = 0;  // current state of the LED (to restore state after a sleep)
 #include <SD.h>
 
 boolean sdCardPresent = false;  // true if an SD card has been initialized successfully
-char currentFile[13] = "";
 const char ok_card[] PROGMEM = " SD CARD OK ";
 const char ko_card[] PROGMEM = " NO SD CARD ";
 #endif
+char currentFile[13] = " NO SD CARD ";
 
 char *fontName[4] = {"NORMAL", "SMALL", "MEDIUM", "LARGE"};
 
@@ -550,10 +550,14 @@ void host_newLine(byte num) {
 // When waking up restores the display and the ADC configuration
 void host_goToSleep(void) {
   if (ledPin) digitalWrite(ledPin, LOW); // if LED present switch it off
+#if SD_CARD  
   host_unmountSD();   // unmount SD card so it can be unplugged while the terminal is sleeping
+#endif
   SRXESleep(); // go into sleep mode and wait for an event (on/off button)
   // returning from sleep
+#if SD_CARD  
   host_mountSD();     // try mounting the SD card just in case....
+#endif
   // restore screen
 #if SHOW_SPLASHSCREEN
   host_splashscreen();
@@ -567,32 +571,50 @@ void host_goToSleep(void) {
 //    host_setConf
 //  Modifies configuration
 // UP and DOWN change font
+// LEFT and RIGHT change LCD contrast
 // MENU or ENTER returns to calling function
+// input
+//  nothing
 //
-void host_setConf(void) {
+// output
+//  true if display need to be updated (if font changed)
+//
+boolean host_setConf(void) {
   char c;
   boolean done = false;
+  boolean needRedraw = false;
   unsigned char font = fontStatus.currentFont; // get current font
   while (!done) {
     while (c = SRXEGetKey()) {    // get a key
       switch (c) {
         case KEY_UP:
           font += 1;  // next font
+          needRedraw = true;
           break;
         case KEY_DOWN:
           font -= 1;  // previous font
+          needRedraw = true;
+          break;
+        case KEY_LEFT:
+          SRXEDecreaseVop();
+          break;
+        case KEY_RIGHT:
+          SRXEIncreaseVop();
           break;
         case KEY_MENU:
         case KEY_ENTER:
           done = true;  // exit setConf
           break;
       }
-      font &= 3;          // limit font number to 0..3 range
-      host_setFont(font); // update font parameters
-      host_printStatus(true); // display updated status
-      //delay(100);         // little delay just in case
+      if(needRedraw){
+        font &= 3;          // limit font number to 0..3 range
+        host_setFont(font); // update font parameters
+        host_printStatus(true); // display updated status
+        //delay(100);         // little delay just in case
+      }
     }
   }
+  return(needRedraw);
 }
 
 /*
@@ -601,7 +623,7 @@ void host_setConf(void) {
  * wait for keyboard press
  *      keeps status line updated
  *      tests if power button depressed --> goto sleep
- *      tests if menu key depressed --> goto into configuratin mode
+ *      tests if menu key depressed --> goto into configuration mode
  *      fills input buffer until enter key is depressed
  * 
  */
@@ -632,16 +654,17 @@ char *host_readLine() {
       else if (c == KEY_DELETE && pos > startPos)
         screenBuffer[--pos] = 0;
       else if ((c == KEY_MENU)) {     // if we want to change configuration
-        host_setConf();               // call setConf to change font
-        // update screen content with new font
-        // move current line to top of screen
-        memcpy(screenBuffer, screenBuffer + startPos, pos - startPos);
-        pos = pos - startPos;
-        startPos = 0;
-        // clear from current pos to end of buffer
-        memset(screenBuffer + pos, 32, fontStatus.bufSize - pos); // screenBuffer + pos + 1 or + pos???
-        // tels that all the lines have changed
-        memset(lineDirty, 1, fontStatus.nbLine);
+        if(host_setConf()){           // call setConf to change font
+          // update screen content if new font
+          // move current line to top of screen
+          memcpy(screenBuffer, screenBuffer + startPos, pos - startPos);
+          pos = pos - startPos;
+          startPos = 0;
+          // clear from current pos to end of buffer
+          memset(screenBuffer + pos, 32, fontStatus.bufSize - pos); // screenBuffer + pos + 1 or + pos???
+          // tels that all the lines have changed
+          memset(lineDirty, 1, fontStatus.nbLine);
+        }
       }
       else if (c == KEY_ENTER)
         done = true;

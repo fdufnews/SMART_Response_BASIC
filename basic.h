@@ -122,6 +122,7 @@
 #define ERROR_BAD_PARAMETER             24
 
 #define MAX_IDENT_LEN   8
+#define MAX_FILENAME_LEN   12
 #define MAX_NUMBER_LEN  10
 
 // size of BASIC memory space this is the size allocated to mem[] which is where program and data are located

@@ -49,7 +49,7 @@ Getting started
 1. Download the zip file, unpack and copy the *folder* to your arduino sketches directory.
 
 2. Install the [SMART response XE library](https://github.com/fdufnews/SMART-Response-XE-Low_level) it is [bitbank2's library](https://github.com/bitbank2/SmartResponseXE) with some modification. Unzip the file and copy the *folder* in a hardware directory as explained in the readme.md of the library.
-
+3. Install the [MemoryFree Library](https://github.com/McNeight/MemoryFree)
 
 BASIC Language
 --------------

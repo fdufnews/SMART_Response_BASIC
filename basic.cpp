@@ -1802,11 +1802,11 @@ int parseLoadSaveCmd() {
       }
 #endif
 #if SD_CARD
-      char fileName[MAX_IDENT_LEN + 1 + 4];  // added 4 to handle a .BAS extension
-      if (strlen(stackGetStr()) > MAX_IDENT_LEN)
+      char fileName[MAX_FILENAME_LEN + 1];  // added 4 to handle a .BAS extension
+      if (strlen(stackGetStr()) > MAX_FILENAME_LEN)
         return ERROR_BAD_PARAMETER;
       strcpy(fileName, stackPopStr());
-      strcat(fileName, ".BAS");  // add the extension
+      //strcat(fileName, ".BAS");  // add the extension
       if (op == TOKEN_SAVE) {
         if (!host_saveSD(fileName))
           return ERROR_OUT_OF_MEMORY;
