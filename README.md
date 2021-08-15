@@ -50,6 +50,10 @@ Getting started
 
 2. Install the [SMART response XE library](https://github.com/fdufnews/SMART-Response-XE-Low_level) it is [bitbank2's library](https://github.com/bitbank2/SmartResponseXE) with some modification. Unzip the file and copy the *folder* in a hardware directory as explained in the readme.md of the library.
 3. Install the [MemoryFree Library](https://github.com/McNeight/MemoryFree)
+4. You may want to add/suppress some features.
+  a. in host.h, SHOW_SPLASHSCREEN tells the compiler to add or not the splashscreen when the terminal is powered on.
+  b. in host.h, SD_CARD tells the compiler to add or not support for an sd card
+  c. in basic.h MEMORY_SIZE can change the size of the memory allocated to basic
 
 BASIC Language
 --------------
@@ -63,7 +67,7 @@ First the state of the battery, the font used, the state of the SD card, the mem
 
 * The system gives the user the option to switch from one font to another. There are 4 fonts:
   * **normal**, using a 9x8 matrix and giving 17 lines of 42 characters
-  * **small**, using a 6x8 matrix and giving 17 lines of 64 characters (really, really small difficult to use for poor old eyes)
+  * **small**, using a 6x8 matrix and giving 17 lines of 64 characters (really, really small difficult to use for poor old eyes)SHOW_SPLASHSCREENSHOW_SPLASHSCREEN
   * **medium**, using a 12x16 matrix and giving 8 lines of 32 characters
   * **large**, using a 15x16 matrix and giving 8 lines of 25 characters
 The medium and large font leave 8 lines at bottom of screen so it was decided to do the same for the normal and small one. Theese 8 lines are used to display the status.
