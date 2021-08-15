@@ -51,12 +51,9 @@ Getting started
 2. Install the [SMART response XE library](https://github.com/fdufnews/SMART-Response-XE-Low_level) it is [bitbank2's library](https://github.com/bitbank2/SmartResponseXE) with some modification. Unzip the file and copy the *folder* in a hardware directory as explained in the readme.md of the library.
 3. Install the [MemoryFree Library](https://github.com/McNeight/MemoryFree)
 4. You may want to add/suppress some features.
-
-  a. in host.h, SHOW_SPLASHSCREEN tells the compiler to add or not the splashscreen when the terminal is powered on.
-
-  b. in host.h, SD_CARD tells the compiler to add or not support for an sd card
-
-  c. in basic.h MEMORY_SIZE can change the size of the memory allocated to basic
+    a. in host.h, SHOW_SPLASHSCREEN tells the compiler to add or not the splashscreen when the terminal is powered on.
+    b. in host.h, SD_CARD tells the compiler to add or not support for an sd card
+    c. in basic.h MEMORY_SIZE can change the size of the memory allocated to basic
 
 BASIC Language
 --------------
